@@ -269,9 +269,11 @@ Layer 5: @Version optimistic lock (concurrent balance update)
 - [ ] Custom `InsufficientFundsException`
 - [ ] Dynamic account dropdowns in dashboard
 
-### Phase 3 — Testing _(aane wala hai)_
-- [ ] Missing test cases added
-- [ ] CountDownLatch in concurrency test
+### Phase 3 — Testing ✅ DONE — 11/11 Tests Passing
+- [x] FreshnessCheckTest — stale packet (>24h), fresh (1h), future-dated rejected
+- [x] InsufficientFundsTest — INVALID + no balance change on rejection
+- [x] MeshAndCryptoTest — reset clears state, hash deterministic, unknown VPA handled
+- [x] Existing: encryptDecryptRoundTrip, tamperedCiphertextIsRejected, singlePacketDeliveredByThreeBridgesSettlesExactlyOnce
 
 ### Phase 4 — Security _(aane wala hai)_
 - [ ] BCrypt for PIN hashing
