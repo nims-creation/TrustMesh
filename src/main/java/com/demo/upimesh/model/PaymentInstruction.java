@@ -1,5 +1,9 @@
 package com.demo.upimesh.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 
 /**
@@ -14,7 +18,14 @@ import java.math.BigDecimal;
  *               this, an attacker who got the ciphertext could replay it weeks later.
  *   - pinHash: in a real system the user enters a UPI PIN; we'd verify it against
  *              a hash held by the bank. Here we just record it for realism.
+ *
+ * @Data       — getters/setters/equals/hashCode/toString
+ * @NoArgsConstructor  — required by Jackson for JSON deserialization (decrypt path)
+ * @AllArgsConstructor — used by DemoService.createPacket() for clean construction
  */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class PaymentInstruction {
 
     private String senderVpa;
@@ -23,34 +34,4 @@ public class PaymentInstruction {
     private String pinHash;
     private String nonce;     // UUID, unique per payment intent
     private Long signedAt;    // epoch millis, when sender signed
-
-    public PaymentInstruction() {}
-
-    public PaymentInstruction(String senderVpa, String receiverVpa, BigDecimal amount,
-                              String pinHash, String nonce, Long signedAt) {
-        this.senderVpa = senderVpa;
-        this.receiverVpa = receiverVpa;
-        this.amount = amount;
-        this.pinHash = pinHash;
-        this.nonce = nonce;
-        this.signedAt = signedAt;
-    }
-
-    public String getSenderVpa() { return senderVpa; }
-    public void setSenderVpa(String senderVpa) { this.senderVpa = senderVpa; }
-
-    public String getReceiverVpa() { return receiverVpa; }
-    public void setReceiverVpa(String receiverVpa) { this.receiverVpa = receiverVpa; }
-
-    public BigDecimal getAmount() { return amount; }
-    public void setAmount(BigDecimal amount) { this.amount = amount; }
-
-    public String getPinHash() { return pinHash; }
-    public void setPinHash(String pinHash) { this.pinHash = pinHash; }
-
-    public String getNonce() { return nonce; }
-    public void setNonce(String nonce) { this.nonce = nonce; }
-
-    public Long getSignedAt() { return signedAt; }
-    public void setSignedAt(Long signedAt) { this.signedAt = signedAt; }
 }
