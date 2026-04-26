@@ -74,9 +74,37 @@
 
     <build>
         <plugins>
+            <!--
+                maven-compiler-plugin: must declare Lombok as an annotationProcessorPath.
+                Without this, Lombok's @Data/@NoArgsConstructor annotations are present
+                but the code generator never runs, causing 'cannot find symbol' errors
+                for all generated getters and setters at compile time.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- Exclude Lombok from the fat JAR — it is compile-time only -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
             </plugin>
         </plugins>
     </build>
