@@ -4,6 +4,9 @@ import com.demo.upimesh.crypto.ServerKeyHolder;
 import com.demo.upimesh.model.*;
 import com.demo.upimesh.service.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -50,7 +53,7 @@ public class ApiController {
      * and inject it into the mesh at the given device.
      */
     @PostMapping("/demo/send")
-    public ResponseEntity<?> demoSend(@RequestBody DemoSendRequest req) throws Exception {
+    public ResponseEntity<?> demoSend(@RequestBody @Valid DemoSendRequest req) throws Exception {
         MeshPacket packet = demo.createPacket(
                 req.senderVpa, req.receiverVpa, req.amount, req.pin,
                 req.ttl == null ? 5 : req.ttl);
@@ -67,10 +70,19 @@ public class ApiController {
     }
 
     public static class DemoSendRequest {
+        @NotBlank(message = "senderVpa must not be blank")
         public String senderVpa;
+
+        @NotBlank(message = "receiverVpa must not be blank")
         public String receiverVpa;
-        public BigDecimal amount;
+
+        @Positive(message = "amount must be positive")
+        public java.math.BigDecimal amount;
+
+        @NotBlank(message = "pin must not be blank")
+        @Size(min = 4, max = 6, message = "pin must be 4-6 digits")
         public String pin;
+
         public Integer ttl;
         public String startDevice;
     }
