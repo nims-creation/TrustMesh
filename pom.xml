@@ -57,6 +57,13 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- Lombok — eliminates boilerplate getters/setters/constructors -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Test scope -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
