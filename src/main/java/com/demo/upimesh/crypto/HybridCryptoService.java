@@ -133,8 +133,11 @@ public class HybridCryptoService {
      * copies of the same packet have identical ciphertexts, hence identical hashes.
      */
     public String hashCiphertext(String base64Ciphertext) throws Exception {
+        // Decode to raw bytes first — hashing the Base64 string is charset-dependent
+        // and would produce different hashes on different JVMs/platforms.
+        byte[] rawBytes = Base64.getDecoder().decode(base64Ciphertext);
         MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-        byte[] hash = sha256.digest(base64Ciphertext.getBytes());
+        byte[] hash = sha256.digest(rawBytes);
         StringBuilder hex = new StringBuilder();
         for (byte b : hash) {
             hex.append(String.format("%02x", b));
