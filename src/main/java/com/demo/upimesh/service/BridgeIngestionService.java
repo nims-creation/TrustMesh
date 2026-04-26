@@ -6,7 +6,6 @@ import com.demo.upimesh.model.PaymentInstruction;
 import com.demo.upimesh.model.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -23,18 +22,31 @@ import java.time.Instant;
  *      - If decryption fails: tampered or junk. Reject.
  *   4. Check freshness — reject if signedAt is too old (replay protection).
  *   5. Hand off to SettlementService for the actual debit/credit.
+ *
+ * Constructor injection is used instead of @Autowired field injection because:
+ *   - Dependencies are final (immutable after construction)
+ *   - Unit tests can inject mocks without a Spring context
+ *   - Spring itself recommends constructor injection
  */
 @Service
 public class BridgeIngestionService {
 
     private static final Logger log = LoggerFactory.getLogger(BridgeIngestionService.class);
 
-    @Autowired private HybridCryptoService crypto;
-    @Autowired private IdempotencyService idempotency;
-    @Autowired private SettlementService settlement;
+    private final HybridCryptoService crypto;
+    private final IdempotencyService idempotency;
+    private final SettlementService settlement;
 
     @Value("${upi.mesh.packet-max-age-seconds:86400}")
     private long maxAgeSeconds;
+
+    public BridgeIngestionService(HybridCryptoService crypto,
+                                  IdempotencyService idempotency,
+                                  SettlementService settlement) {
+        this.crypto = crypto;
+        this.idempotency = idempotency;
+        this.settlement = settlement;
+    }
 
     public IngestResult ingest(MeshPacket packet, String bridgeNodeId, int hopCount) {
         try {
