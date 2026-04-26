@@ -7,11 +7,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.util.*;
 
 /**
@@ -22,18 +20,37 @@ import java.util.*;
  *   /api/mesh/*          → simulator endpoints (inject, gossip, flush)
  *   /api/bridge/ingest   → THE real production endpoint a real bridge node would hit
  *   /api/accounts, /api/transactions → for the dashboard
+ *
+ * Constructor injection: all dependencies are final — Spring auto-wires them
+ * because there is exactly one constructor (no @Autowired annotation needed).
  */
 @RestController
 @RequestMapping("/api")
 public class ApiController {
 
-    @Autowired private ServerKeyHolder serverKey;
-    @Autowired private DemoService demo;
-    @Autowired private MeshSimulatorService mesh;
-    @Autowired private BridgeIngestionService bridge;
-    @Autowired private AccountRepository accountRepo;
-    @Autowired private TransactionRepository txRepo;
-    @Autowired private IdempotencyService idempotency;
+    private final ServerKeyHolder serverKey;
+    private final DemoService demo;
+    private final MeshSimulatorService mesh;
+    private final BridgeIngestionService bridge;
+    private final AccountRepository accountRepo;
+    private final TransactionRepository txRepo;
+    private final IdempotencyService idempotency;
+
+    public ApiController(ServerKeyHolder serverKey,
+                         DemoService demo,
+                         MeshSimulatorService mesh,
+                         BridgeIngestionService bridge,
+                         AccountRepository accountRepo,
+                         TransactionRepository txRepo,
+                         IdempotencyService idempotency) {
+        this.serverKey = serverKey;
+        this.demo = demo;
+        this.mesh = mesh;
+        this.bridge = bridge;
+        this.accountRepo = accountRepo;
+        this.txRepo = txRepo;
+        this.idempotency = idempotency;
+    }
 
     // ------------------------------------------------------------------ key
 
