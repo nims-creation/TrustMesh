@@ -84,6 +84,9 @@ public class BridgeIngestionService {
             Transaction tx = settlement.settle(instruction, packetHash, bridgeNodeId, hopCount);
             return IngestResult.settled(packetHash, tx);
 
+        } catch (InsufficientFundsException e) {
+            log.warn("Insufficient funds for {}: {}", e.getSenderVpa(), e.getMessage());
+            return IngestResult.invalid(e.getMessage(), "insufficient_funds");
         } catch (Exception e) {
             log.error("Ingestion error: {}", e.getMessage(), e);
             return IngestResult.invalid("?", "internal_error: " + e.getMessage());
