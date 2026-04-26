@@ -1,57 +1,42 @@
 package com.demo.upimesh.service;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-
-import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
- * In-memory idempotency cache. In production this would be Redis with SETNX +
- * TTL — exactly the same semantics, just distributed across instances.
+ * Contract for the idempotency layer.
  *
- * The contract:
- *   - claim(hash) returns true on first call, false on every call after that
- *     (within the TTL window)
- *   - the operation is atomic — even if 100 threads call claim(hash) at the
- *     same instant, exactly one returns true
+ * Why an interface?
+ * -----------------
+ * The DEMO implementation (LocalIdempotencyService) uses a ConcurrentHashMap —
+ * fast, simple, but single-JVM only. A multi-node production deployment needs
+ * a distributed implementation backed by Redis.
  *
- * This is what kills the "three bridges deliver simultaneously" problem.
- * ConcurrentHashMap.putIfAbsent is the JVM-local equivalent of Redis SETNX.
+ * With this interface, swapping the implementation for production is one step:
+ *   1. Add spring-boot-starter-data-redis to pom.xml
+ *   2. Create RedisIdempotencyService implements IdempotencyService
+ *   3. Annotate the new class with @Profile("prod") and
+ *      LocalIdempotencyService with @Profile("!prod")
+ *   4. The rest of the codebase (BridgeIngestionService, ApiController,
+ *      the test suite) never changes — they depend on this interface.
+ *
+ * This is the Dependency Inversion Principle (DIP) from SOLID:
+ * high-level policy (BridgeIngestionService) depends on an abstraction,
+ * not a concrete detail (ConcurrentHashMap vs. Redis).
  */
-@Service
-public class IdempotencyService {
-
-    private final Map<String, Instant> seen = new ConcurrentHashMap<>();
-
-    @Value("${upi.mesh.idempotency-ttl-seconds:86400}")
-    private long ttlSeconds;
+public interface IdempotencyService {
 
     /**
-     * Try to claim a hash. Returns true if this caller is the first; false if
-     * someone else already claimed it (i.e. the packet is a duplicate).
+     * Atomically claim a packet hash.
+     *
+     * @return true  if this caller is the FIRST to claim this hash (process it)
+     *         false if the hash was already claimed (duplicate — drop it)
+     *
+     * In Redis: equivalent to SET key value NX PX ttlMillis
+     * In JVM:   equivalent to ConcurrentHashMap.putIfAbsent(key, now) == null
      */
-    public boolean claim(String packetHash) {
-        Instant now = Instant.now();
-        Instant prev = seen.putIfAbsent(packetHash, now);
-        return prev == null;
-    }
+    boolean claim(String packetHash);
 
-    public int size() {
-        return seen.size();
-    }
+    /** Returns the current number of tracked hashes (useful for the dashboard). */
+    int size();
 
-    /** Periodically evict entries past their TTL so the map doesn't grow forever. */
-    @Scheduled(fixedDelay = 60_000)
-    public void evictExpired() {
-        Instant cutoff = Instant.now().minusSeconds(ttlSeconds);
-        seen.entrySet().removeIf(e -> e.getValue().isBefore(cutoff));
-    }
-
-    /** Test/demo helper. */
-    public void clear() {
-        seen.clear();
-    }
+    /** Clears all tracked hashes. Used by /api/mesh/reset and tests. */
+    void clear();
 }
