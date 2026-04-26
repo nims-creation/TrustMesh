@@ -64,6 +64,17 @@
             <optional>true</optional>
         </dependency>
 
+        <!--
+            spring-security-crypto: provides BCryptPasswordEncoder / BCrypt utility.
+            Added WITHOUT spring-boot-starter-security so we get BCrypt hashing
+            for PINs without triggering Spring Security's auto-configuration
+            (no login page, no session management, no security filter chain).
+        -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
         <!-- Test scope -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

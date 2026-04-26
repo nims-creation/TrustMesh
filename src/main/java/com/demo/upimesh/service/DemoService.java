@@ -9,10 +9,10 @@ import com.demo.upimesh.model.PaymentInstruction;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -68,9 +68,12 @@ public class DemoService {
                 senderVpa,
                 receiverVpa,
                 amount,
-                sha256Hex(pin),
-                UUID.randomUUID().toString(),       // nonce — guarantees uniqueness
-                Instant.now().toEpochMilli()        // signedAt — for freshness check
+                // BCrypt: auto-generates a random salt + runs 2^10 hash iterations.
+                // Raw SHA-256 (the previous approach) has NO salt — identical PINs
+                // produce identical hashes, making rainbow table attacks trivial.
+                BCrypt.hashpw(pin, BCrypt.gensalt(10)),
+                UUID.randomUUID().toString(),
+                Instant.now().toEpochMilli()
         );
 
         String ciphertext = crypto.encrypt(instruction, serverKey.getPublicKey());
@@ -83,11 +86,4 @@ public class DemoService {
         return packet;
     }
 
-    private String sha256Hex(String input) throws Exception {
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        byte[] hash = md.digest(input.getBytes());
-        StringBuilder hex = new StringBuilder();
-        for (byte b : hash) hex.append(String.format("%02x", b));
-        return hex.toString();
-    }
 }
