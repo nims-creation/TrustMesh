@@ -160,85 +160,119 @@ function log(msg) {
     el.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n' + el.textContent;
 }
 
+function logError(context, err) {
+    log(`❌ ${context} failed: ${err.message || err}`);
+}
+
 async function refresh() {
-    // Mesh state
-    const m = await fetch('/api/mesh/state').then(r => r.json());
-    const devicesDiv = document.getElementById('devices');
-    devicesDiv.innerHTML = m.devices.map(d => `
-        <div class="device ${d.hasInternet ? 'bridge' : 'offline'}">
-            <strong>${d.deviceId}</strong>
-            <span class="badge ${d.hasInternet ? 'badge-online' : 'badge-offline'}">
-                ${d.hasInternet ? '🌐 4G' : '🚫 OFFLINE'}
-            </span>
-            <span class="small">holding ${d.packetCount} packet(s)</span>
-            <div>${d.packetIds.map(id => `<span class="packet-id">${id}</span>`).join('')}</div>
-        </div>
-    `).join('');
-    document.getElementById('cacheInfo').textContent =
-        `Idempotency cache size: ${m.idempotencyCacheSize}`;
+    try {
+        // Mesh state
+        const m = await fetch('/api/mesh/state').then(r => r.json());
+        const devicesDiv = document.getElementById('devices');
+        devicesDiv.innerHTML = m.devices.map(d => `
+            <div class="device ${d.hasInternet ? 'bridge' : 'offline'}">
+                <strong>${d.deviceId}</strong>
+                <span class="badge ${d.hasInternet ? 'badge-online' : 'badge-offline'}">
+                    ${d.hasInternet ? '🌐 4G' : '🚫 OFFLINE'}
+                </span>
+                <span class="small">holding ${d.packetCount} packet(s)</span>
+                <div>${d.packetIds.map(id => `<span class="packet-id">${id}</span>`).join('')}</div>
+            </div>
+        `).join('');
+        document.getElementById('cacheInfo').textContent =
+            `Idempotency cache size: ${m.idempotencyCacheSize}`;
 
-    // Accounts
-    const accs = await fetch('/api/accounts').then(r => r.json());
-    document.querySelector('#accounts-table tbody').innerHTML = accs.map(a => `
-        <tr><td>${a.vpa}</td><td>${a.holderName}</td>
-            <td class="balance">₹${parseFloat(a.balance).toFixed(2)}</td></tr>
-    `).join('');
+        // Accounts
+        const accs = await fetch('/api/accounts').then(r => r.json());
+        document.querySelector('#accounts-table tbody').innerHTML = accs.map(a => `
+            <tr><td>${a.vpa}</td><td>${a.holderName}</td>
+                <td class="balance">₹${parseFloat(a.balance).toFixed(2)}</td></tr>
+        `).join('');
 
-    // Transactions
-    const txs = await fetch('/api/transactions').then(r => r.json());
-    document.querySelector('#tx-table tbody').innerHTML = txs.map(t => `
-        <tr>
-            <td>${t.id}</td><td>${t.senderVpa}</td><td>${t.receiverVpa}</td>
-            <td class="balance">₹${parseFloat(t.amount).toFixed(2)}</td>
-            <td class="status-${t.status}">${t.status}</td>
-            <td>${t.bridgeNodeId}</td><td>${t.hopCount}</td>
-            <td class="small">${new Date(t.settledAt).toLocaleTimeString()}</td>
-        </tr>
-    `).join('');
+        // Transactions
+        const txs = await fetch('/api/transactions').then(r => r.json());
+        document.querySelector('#tx-table tbody').innerHTML = txs.map(t => `
+            <tr>
+                <td>${t.id}</td><td>${t.senderVpa}</td><td>${t.receiverVpa}</td>
+                <td class="balance">₹${parseFloat(t.amount).toFixed(2)}</td>
+                <td class="status-${t.status}">${t.status}</td>
+                <td>${t.bridgeNodeId}</td><td>${t.hopCount}</td>
+                <td class="small">${new Date(t.settledAt).toLocaleTimeString()}</td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        logError('Auto-refresh', err);
+    }
 }
 
 async function sendPacket() {
-    const body = {
-        senderVpa: document.getElementById('senderVpa').value,
-        receiverVpa: document.getElementById('receiverVpa').value,
-        amount: parseFloat(document.getElementById('amount').value),
-        pin: document.getElementById('pin').value,
-        ttl: 5,
-        startDevice: 'phone-alice'
-    };
-    const r = await fetch('/api/demo/send', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(body)
-    }).then(r => r.json());
-    log(`📤 Packet ${r.packetId.substring(0,8)} encrypted & injected at ${r.injectedAt} (TTL ${r.ttl})`);
-    log(`   ciphertext (truncated): ${r.ciphertextPreview}`);
-    refresh();
+    try {
+        const body = {
+            senderVpa: document.getElementById('senderVpa').value,
+            receiverVpa: document.getElementById('receiverVpa').value,
+            amount: parseFloat(document.getElementById('amount').value),
+            pin: document.getElementById('pin').value,
+            ttl: 5,
+            startDevice: 'phone-alice'
+        };
+        const r = await fetch('/api/demo/send', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        }).then(r => r.json());
+        log(`📤 Packet ${r.packetId.substring(0,8)} encrypted & injected at ${r.injectedAt} (TTL ${r.ttl})`);
+        log(`   ciphertext (truncated): ${r.ciphertextPreview}`);
+        refresh();
+    } catch (err) {
+        logError('Send packet', err);
+    }
 }
 
 async function gossip() {
-    const r = await fetch('/api/mesh/gossip', {method: 'POST'}).then(r => r.json());
-    log(`🔄 Gossip: ${r.transfers} transfer(s) — ${JSON.stringify(r.deviceCounts)}`);
-    refresh();
+    try {
+        const r = await fetch('/api/mesh/gossip', {method: 'POST'}).then(r => r.json());
+        log(`🔄 Gossip: ${r.transfers} transfer(s) — ${JSON.stringify(r.deviceCounts)}`);
+        refresh();
+    } catch (err) {
+        logError('Gossip', err);
+    }
 }
 
 async function flushBridges() {
-    const r = await fetch('/api/mesh/flush', {method: 'POST'}).then(r => r.json());
-    log(`📡 ${r.uploadsAttempted} bridge upload(s):`);
-    r.results.forEach(res => {
-        log(`   ${res.bridgeNode} packet ${res.packetId} → ${res.outcome}` +
-            (res.reason ? ` (${res.reason})` : ''));
-    });
-    refresh();
+    try {
+        const r = await fetch('/api/mesh/flush', {method: 'POST'}).then(r => r.json());
+        log(`📡 ${r.uploadsAttempted} bridge upload(s):`);
+        r.results.forEach(res => {
+            log(`   ${res.bridgeNode} packet ${res.packetId} → ${res.outcome}` +
+                (res.reason ? ` (${res.reason})` : ''));
+        });
+        refresh();
+    } catch (err) {
+        logError('Bridge flush', err);
+    }
 }
 
 async function resetMesh() {
-    await fetch('/api/mesh/reset', {method: 'POST'});
-    log('🗑 mesh + idempotency cache cleared');
-    refresh();
+    try {
+        await fetch('/api/mesh/reset', {method: 'POST'});
+        log('🗑 mesh + idempotency cache cleared');
+        refresh();
+    } catch (err) {
+        logError('Reset', err);
+    }
 }
 
+// Auto-refresh: pause when tab is hidden to save resources
+let refreshTimer = setInterval(refresh, 3000);
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        clearInterval(refreshTimer);
+    } else {
+        refresh();
+        refreshTimer = setInterval(refresh, 3000);
+    }
+});
+
 refresh();
-setInterval(refresh, 3000);
 </script>
 </body>
 </html>
