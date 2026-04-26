@@ -9,7 +9,6 @@ import com.demo.upimesh.model.PaymentInstruction;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -21,15 +20,26 @@ import java.util.UUID;
  * Helper service that:
  *   - seeds demo accounts on startup
  *   - simulates "sender phone creates an encrypted packet" flow
+ *
+ * Constructor injection: all three dependencies are final, making this
+ * service's state predictable and the class easy to unit-test in isolation.
  */
 @Service
 public class DemoService {
 
     private static final Logger log = LoggerFactory.getLogger(DemoService.class);
 
-    @Autowired private AccountRepository accounts;
-    @Autowired private HybridCryptoService crypto;
-    @Autowired private ServerKeyHolder serverKey;
+    private final AccountRepository accounts;
+    private final HybridCryptoService crypto;
+    private final ServerKeyHolder serverKey;
+
+    public DemoService(AccountRepository accounts,
+                       HybridCryptoService crypto,
+                       ServerKeyHolder serverKey) {
+        this.accounts = accounts;
+        this.crypto = crypto;
+        this.serverKey = serverKey;
+    }
 
     @PostConstruct
     public void seedAccounts() {
