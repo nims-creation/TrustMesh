@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.*;
 
@@ -26,6 +28,7 @@ import java.util.*;
  */
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Core API", description = "Primary endpoints for Mesh Injection, State Management, and Data Access")
 public class ApiController {
 
     private final ServerKeyHolder serverKey;
@@ -55,6 +58,7 @@ public class ApiController {
     // ------------------------------------------------------------------ key
 
     @GetMapping("/server-key")
+    @Operation(summary = "Get Server Public Key", description = "Returns the RSA-2048 public key used by sender devices to encrypt payment instructions before injecting into the mesh.")
     public Map<String, String> getServerPublicKey() {
         return Map.of(
                 "publicKey", serverKey.getPublicKeyBase64(),
@@ -70,6 +74,7 @@ public class ApiController {
      * and inject it into the mesh at the given device.
      */
     @PostMapping("/demo/send")
+    @Operation(summary = "Simulate Mesh Injection", description = "Creates an encrypted payment packet and injects it into a simulated device node. This mocks the Android app's sender behavior.")
     public ResponseEntity<?> demoSend(@RequestBody @Valid DemoSendRequest req) throws Exception {
         MeshPacket packet = demo.createPacket(
                 req.senderVpa, req.receiverVpa, req.amount, req.pin,
@@ -183,6 +188,7 @@ public class ApiController {
      * the device has internet and is holding mesh packets.
      */
     @PostMapping("/bridge/ingest")
+    @Operation(summary = "Ingest Mesh Packet", description = "THE PRODUCTION ENDPOINT. Bridge nodes POST here whenever they reach internet connectivity and are holding mesh packets.")
     public ResponseEntity<?> ingest(
             @RequestBody @Valid MeshPacket packet,
             @RequestHeader(value = "X-Bridge-Node-Id", defaultValue = "unknown") String bridgeNodeId,
@@ -195,11 +201,13 @@ public class ApiController {
     // ------------------------------------------------------------- accounts
 
     @GetMapping("/accounts")
+    @Operation(summary = "List Accounts", description = "Returns all accounts and their balances for the dashboard.")
     public List<Account> listAccounts() {
         return accountRepo.findAll();
     }
 
     @GetMapping("/transactions")
+    @Operation(summary = "List Transactions", description = "Returns the latest 20 settled transactions for the dashboard ledger.")
     public List<Transaction> listTransactions() {
         return txRepo.findTop20ByOrderByIdDesc();
     }
