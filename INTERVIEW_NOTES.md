@@ -327,3 +327,8 @@ Layer 5: @Version optimistic lock (concurrent balance update)
 
 12. **GlobalExceptionHandler mein InsufficientFunds ke liye 422 kyun, 400 nahi?**
     → 400 = bad request (invalid input). 422 = semantically correct request, business rule failed. Semantically more accurate — the request was valid, just the balance was low.
+
+## ??? Architecture Diagram
+
+Check the README.md for the comprehensive Mermaid sequence diagram. It illustrates the exact flow from the offline sender, through the untrusted mesh gossip, reaching the bridge node, and finally processing through the API gateway, Idempotency Cache, and Settlement Ledger.
+
