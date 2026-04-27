@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  trustmesh-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trustmesh-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - UPI_MESH_MAX_HOPS=10
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# For a production deployment, you would uncomment the PostgreSQL and Redis services below
+# and update the SPRING_PROFILES_ACTIVE to 'prod'.
+#
+#  postgres:
+#    image: postgres:15-alpine
+#    environment:
+#      POSTGRES_DB: trustmesh
+#      POSTGRES_USER: admin
+#      POSTGRES_PASSWORD: securepassword
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+#    ports:
+#      - "5432:5432"
+#
+#  redis:
+#    image: redis:7-alpine
+#    ports:
+#      - "6379:6379"
+#    volumes:
+#      - redis_data:/data
+#
+#volumes:
+#  postgres_data:
+#  redis_data:
