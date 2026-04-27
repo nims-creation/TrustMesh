@@ -9,8 +9,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_PROFILES_ACTIVE=prod
       - UPI_MESH_MAX_HOPS=10
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
@@ -19,27 +22,21 @@ services:
       retries: 3
       start_period: 40s
 
-# For a production deployment, you would uncomment the PostgreSQL and Redis services below
-# and update the SPRING_PROFILES_ACTIVE to 'prod'.
-#
-#  postgres:
-#    image: postgres:15-alpine
-#    environment:
-#      POSTGRES_DB: trustmesh
-#      POSTGRES_USER: admin
-#      POSTGRES_PASSWORD: securepassword
-#    volumes:
-#      - postgres_data:/var/lib/postgresql/data
-#    ports:
-#      - "5432:5432"
-#
-#  redis:
-#    image: redis:7-alpine
-#    ports:
-#      - "6379:6379"
-#    volumes:
-#      - redis_data:/data
-#
-#volumes:
-#  postgres_data:
-#  redis_data:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: trustmesh
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: securepassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d trustmesh"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

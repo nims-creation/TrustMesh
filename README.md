@@ -9,6 +9,16 @@
 
 ---
 
+## 📑 Table of Contents
+- [🚀 Quick Start](#-quick-start)
+- [🏛️ System Architecture](#️-system-architecture)
+- [🔍 Architecture Deep Dive](#-architecture-deep-dive)
+- [✨ Core Features](#-core-features)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [📚 Documentation](#-documentation)
+
+---
+
 ## 🚀 Quick Start
 
 Ensure you have Docker and Docker Compose installed.
@@ -19,8 +29,13 @@ git clone https://github.com/nims-creation/TrustMesh.git
 cd TrustMesh
 
 # 2. Start the application via Docker Compose
+# To run with in-memory H2 database (Development mode):
 make docker-up
 # Or manually: docker-compose up --build -d
+
+# To run with PostgreSQL database (Production mode):
+# Set SPRING_PROFILES_ACTIVE=prod in docker-compose.yml, then run:
+# docker-compose up --build -d
 
 # 3. Access the Live Dashboard
 open http://localhost:8080/
@@ -73,6 +88,29 @@ sequenceDiagram
         API-->>B: 200 OK (Settled)
     end
 ```
+
+---
+
+## 🔍 Architecture Deep Dive
+
+### 1. Hybrid Cryptography
+To secure payment packets across untrusted mesh nodes, TrustMesh uses a hybrid cryptography approach:
+- Each payment generates a unique, one-time **AES-256-GCM** key.
+- The payload is encrypted symmetrically using this AES key, providing both confidentiality and data integrity via the GCM authentication tag.
+- The AES key is then encrypted asymmetrically using the server's **RSA-2048 Public Key** (retrieved via `/api/server-key`).
+- Only the backend server, holding the private key, can decrypt the AES key and subsequently decrypt the payload. 
+
+### 2. Mesh Routing & Gossip Protocol
+The simulated mesh network relies on a flooding gossip protocol. Devices broadcast packets to all nearby nodes, decrementing a TTL (Time-To-Live) counter on each hop. This ensures maximum reachability in disconnected environments while preventing infinite loops.
+
+### 3. Concurrent Idempotency
+Because the mesh floods the network, it is highly likely that multiple bridge nodes will receive the same packet and attempt to upload it to the backend simultaneously. To prevent double-spending:
+- The backend calculates a SHA-256 hash of the incoming encrypted packet.
+- It uses a concurrent `putIfAbsent` operation (JVM-local or Redis) to claim an exclusive lock on that hash.
+- Only the thread that successfully claims the hash proceeds to process the payment; all other threads immediately drop the packet as a duplicate.
+
+### 4. ACID Settlement
+Transactions are committed to the database (H2 or PostgreSQL) using Spring Data JPA. We employ optimistic locking (`@Version`) on the Account entity to ensure that concurrent updates do not result in lost updates or inconsistent balances.
 
 ---
 
