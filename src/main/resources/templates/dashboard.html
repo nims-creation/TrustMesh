@@ -62,6 +62,10 @@
             max-height: 220px; overflow-y: auto; white-space: pre-wrap;
             border: 1px solid #30363d;
         }
+        .highlight-settled { background-color: rgba(46, 160, 67, 0.15); }
+        .packet-id { cursor: pointer; transition: background 0.2s; }
+        .packet-id:hover { background: #30363d; }
+        .packet-id:active { background: #58a6ff; }
         .controls { background: #161b22; padding: 16px; border-radius: 8px;
                     border: 1px solid #30363d; margin-bottom: 16px; }
         .step-num {
@@ -75,7 +79,7 @@
 </head>
 <body>
 <div class="container">
-    <h1>📡 UPI Offline Mesh — Live Demo</h1>
+    <h1>📡 UPI Offline Mesh — Live Demo <span id="health-badge" class="badge badge-offline">Backend: Checking...</span></h1>
     <p class="small">
         Send money in a basement with zero internet. Encrypted packets gossip from phone to phone
         until one with 4G reaches the backend.
@@ -176,7 +180,7 @@ async function refresh() {
                     ${d.hasInternet ? '🌐 4G' : '🚫 OFFLINE'}
                 </span>
                 <span class="small">holding ${d.packetCount} packet(s)</span>
-                <div>${d.packetIds.map(id => `<span class="packet-id">${id}</span>`).join('')}</div>
+                <div>${d.packetIds.map(id => `<span class="packet-id" onclick="navigator.clipboard.writeText('${id}'); log('📋 Copied packet ID: ${id}')" title="Click to copy">${id}</span>`).join('')}</div>
             </div>
         `).join('');
         document.getElementById('cacheInfo').textContent =
@@ -192,7 +196,7 @@ async function refresh() {
         // Transactions
         const txs = await fetch('/api/transactions').then(r => r.json());
         document.querySelector('#tx-table tbody').innerHTML = txs.map(t => `
-            <tr>
+            <tr class="${t.status === 'SETTLED' ? 'highlight-settled' : ''}">
                 <td>${t.id}</td><td>${t.senderVpa}</td><td>${t.receiverVpa}</td>
                 <td class="balance">₹${parseFloat(t.amount).toFixed(2)}</td>
                 <td class="status-${t.status}">${t.status}</td>
@@ -200,6 +204,17 @@ async function refresh() {
                 <td class="small">${new Date(t.settledAt).toLocaleTimeString()}</td>
             </tr>
         `).join('');
+
+        // Health Check
+        fetch('/api/health').then(r => r.json()).then(h => {
+            const b = document.getElementById('health-badge');
+            b.className = 'badge badge-online';
+            b.textContent = 'Backend: UP';
+        }).catch(() => {
+            const b = document.getElementById('health-badge');
+            b.className = 'badge badge-offline';
+            b.textContent = 'Backend: DOWN';
+        });
     } catch (err) {
         logError('Auto-refresh', err);
     }

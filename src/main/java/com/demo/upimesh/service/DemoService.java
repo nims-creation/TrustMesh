@@ -7,8 +7,7 @@ import com.demo.upimesh.model.AccountRepository;
 import com.demo.upimesh.model.MeshPacket;
 import com.demo.upimesh.model.PaymentInstruction;
 import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
@@ -26,9 +25,8 @@ import java.util.UUID;
  * service's state predictable and the class easy to unit-test in isolation.
  */
 @Service
+@Slf4j
 public class DemoService {
-
-    private static final Logger log = LoggerFactory.getLogger(DemoService.class);
 
     private final AccountRepository accounts;
     private final HybridCryptoService crypto;

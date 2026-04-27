@@ -5,9 +5,8 @@ import com.demo.upimesh.model.AccountRepository;
 import com.demo.upimesh.model.PaymentInstruction;
 import com.demo.upimesh.model.Transaction;
 import com.demo.upimesh.model.TransactionRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -27,9 +26,8 @@ import java.time.Instant;
  * and easily testable without a Spring application context.
  */
 @Service
+@Slf4j
 public class SettlementService {
-
-    private static final Logger log = LoggerFactory.getLogger(SettlementService.class);
 
     private final AccountRepository accounts;
     private final TransactionRepository transactions;

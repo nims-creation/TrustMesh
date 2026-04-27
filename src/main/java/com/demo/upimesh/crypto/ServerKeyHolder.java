@@ -1,9 +1,8 @@
 package com.demo.upimesh.crypto;
 
 import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -22,9 +21,8 @@ import java.util.Base64;
  * encrypt payloads.
  */
 @Component
+@Slf4j
 public class ServerKeyHolder {
-
-    private static final Logger log = LoggerFactory.getLogger(ServerKeyHolder.class);
 
     private KeyPair keyPair;
 

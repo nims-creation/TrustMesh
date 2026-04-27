@@ -207,8 +207,8 @@ public class ApiController {
     }
 
     @GetMapping("/transactions")
-    @Operation(summary = "List Transactions", description = "Returns the latest 20 settled transactions for the dashboard ledger.")
+    @Operation(summary = "List Transactions", description = "Returns the latest 50 settled transactions for the dashboard ledger.")
     public List<Transaction> listTransactions() {
-        return txRepo.findTop20ByOrderByIdDesc();
+        return txRepo.findTop50ByOrderByIdDesc();
     }
 }

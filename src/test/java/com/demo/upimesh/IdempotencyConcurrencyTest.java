@@ -39,6 +39,7 @@ class IdempotencyConcurrencyTest {
     }
 
     @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
     void singlePacketDeliveredByThreeBridgesSettlesExactlyOnce() throws Exception {
         // Capture starting balances
         BigDecimal aliceBefore = accounts.findById("alice@demo").orElseThrow().getBalance();
