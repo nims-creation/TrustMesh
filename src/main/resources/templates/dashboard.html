@@ -91,19 +91,9 @@
         <div>
             <span class="step-num">1</span><strong>Compose payment</strong> (simulates sender phone)
             <br>
-            <select id="senderVpa">
-                <option>alice@demo</option>
-                <option>bob@demo</option>
-                <option>carol@demo</option>
-                <option>dave@demo</option>
-            </select>
+            <select id="senderVpa"></select>
             →
-            <select id="receiverVpa">
-                <option>bob@demo</option>
-                <option>carol@demo</option>
-                <option>alice@demo</option>
-                <option>dave@demo</option>
-            </select>
+            <select id="receiverVpa"></select>
             ₹<input type="number" id="amount" value="500" style="width: 100px">
             PIN <input type="text" id="pin" value="1234" style="width: 80px" maxlength="4">
             <button onclick="sendPacket()">📤 Inject into Mesh</button>
@@ -192,6 +182,19 @@ async function refresh() {
             <tr><td>${a.vpa}</td><td>${a.holderName}</td>
                 <td class="balance">₹${parseFloat(a.balance).toFixed(2)}</td></tr>
         `).join('');
+
+        // Dynamically populate dropdowns
+        const senderSelect = document.getElementById('senderVpa');
+        const receiverSelect = document.getElementById('receiverVpa');
+        if (senderSelect.options.length === 0 && accs.length > 0) {
+            accs.forEach(a => {
+                senderSelect.add(new Option(a.vpa, a.vpa));
+                receiverSelect.add(new Option(a.vpa, a.vpa));
+            });
+            if (accs.length > 1) {
+                receiverSelect.selectedIndex = 1; // Default to different receiver
+            }
+        }
 
         // Transactions
         const txs = await fetch('/api/transactions').then(r => r.json());
