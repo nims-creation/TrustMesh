@@ -114,12 +114,25 @@ async function refresh() {
         // Dynamically populate dropdowns
         const senderSelect = document.getElementById('senderVpa');
         const receiverSelect = document.getElementById('receiverVpa');
-        if (senderSelect.options.length === 0 && accs.length > 0) {
+        if (senderSelect.options.length !== accs.length && accs.length > 0) {
+            const currentSender = senderSelect.value;
+            const currentReceiver = receiverSelect.value;
+            
+            senderSelect.innerHTML = '';
+            receiverSelect.innerHTML = '';
+            
             accs.forEach(a => {
                 senderSelect.add(new Option(a.vpa, a.vpa));
                 receiverSelect.add(new Option(a.vpa, a.vpa));
             });
-            if (accs.length > 1) {
+            
+            // Restore selection or set defaults
+            if (currentSender && [...senderSelect.options].some(o => o.value === currentSender)) {
+                senderSelect.value = currentSender;
+            }
+            if (currentReceiver && [...receiverSelect.options].some(o => o.value === currentReceiver)) {
+                receiverSelect.value = currentReceiver;
+            } else if (accs.length > 1) {
                 receiverSelect.selectedIndex = 1; // Default to different receiver
             }
         }
