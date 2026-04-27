@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.Instant;
 import java.util.Map;
@@ -29,6 +31,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Health Check", description = "System health and metrics endpoints")
 public class HealthController {
 
     private final AccountRepository accounts;
@@ -44,6 +47,7 @@ public class HealthController {
     }
 
     @GetMapping("/health")
+    @Operation(summary = "Get System Health", description = "Returns UP if the database is reachable, DOWN (503) otherwise. Also provides basic system metrics.")
     public ResponseEntity<Map<String, Object>> health() {
         try {
             long accountCount = accounts.count();
