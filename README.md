@@ -9,8 +9,12 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-trustmesh.onrender.com-10b981.svg)](https://trustmesh.onrender.com/)
 
 **A production-grade, offline-first digital payments backend that processes UPI-style transactions over a simulated BLE Mesh network — with zero internet dependency.**
+
+### 🌐 [▶ Try the Live Demo → trustmesh.onrender.com](https://trustmesh.onrender.com/)
+> ⚠️ First load may take ~30 seconds (free tier cold start). Swagger API docs at [trustmesh.onrender.com/swagger-ui.html](https://trustmesh.onrender.com/swagger-ui.html)
 
 [🚀 Quick Start](#-quick-start) · [🏛️ System Design](#️-system-design) · [🔐 Security Model](#-security-model) · [📡 API Reference](#-api-reference) · [🧪 Testing](#-testing) · [🐳 Deployment](#-deployment)
 
@@ -546,19 +550,31 @@ curl http://localhost:8080/api/health
 | `DB_USER` | `trustmesh` | Database user |
 | `DB_PASSWORD` | `trustmesh` | Database password (use secrets in production) |
 
-### Cloud Deployment (Railway / Render)
+### ☁️ Live Deployment — Render.com (Active)
+
+**🌐 Live URL: [https://trustmesh.onrender.com/](https://trustmesh.onrender.com/)**
+
+Deployed on Render free tier using the included `render.yaml`. No environment variables needed — runs with H2 in-memory database for zero-config cloud demo.
+
+```yaml
+# render.yaml (included in repo)
+services:
+  - type: web
+    name: trustmesh
+    buildCommand: ./mvnw clean package -DskipTests
+    startCommand: java -jar target/*.jar
+    plan: free
+```
+
+### Cloud Deployment (Railway / Render with PostgreSQL)
 
 ```bash
-# 1. Push to GitHub (already done)
-# 2. Connect Railway.app to repo
-# 3. Set environment variables in Railway dashboard:
+# For production with PostgreSQL, set these env vars:
 SPRING_PROFILES_ACTIVE=prod
 DB_HOST=<neon-or-supabase-host>
 DB_USER=<user>
 DB_PASSWORD=<password>
 DB_NAME=trustmesh
-
-# 4. Railway auto-deploys on every git push
 ```
 
 ---
@@ -586,7 +602,8 @@ The current architecture is designed to scale horizontally with minimal changes:
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Guidelines for contributors |
 | [INTERVIEW_NOTES.md](./INTERVIEW_NOTES.md) | Technical Q&A for system design interviews |
 | [SECURITY.md](./SECURITY.md) | Security policy and responsible disclosure |
-| [Swagger UI](http://localhost:8080/swagger-ui.html) | Interactive API documentation |
+| [Swagger UI (Live)](https://trustmesh.onrender.com/swagger-ui.html) | Interactive API documentation (live) |
+| [Swagger UI (Local)](http://localhost:8080/swagger-ui.html) | Interactive API documentation (local) |
 
 ---
 
