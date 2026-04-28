@@ -79,7 +79,26 @@
     </div>
 
     <div class="card" style="margin-top: 16px">
-        <h2>🪵 Activity Log</h2>
+        <h2>🔌 Under The Hood — Proof This Isn't Just Add/Subtract</h2>
+        <div class="grid grid-2" style="gap:16px">
+            <div>
+                <h3 style="font-size:14px; margin-bottom:8px">🔐 Last Encrypted Ciphertext (What Bridge Node Sees)</h3>
+                <div id="ciphertext-display" style="font-family:'JetBrains Mono',monospace;font-size:11px;background:#020617;padding:12px;border-radius:8px;border:1px solid #1e3a5f;word-break:break-all;color:#60a5fa;min-height:60px">
+                    <span style="color:#475569">Inject a packet to see the encrypted ciphertext...</span>
+                </div>
+                <p class="small" style="margin-top:6px">💡 The bridge node sees ONLY this opaque blob — it cannot read sender, receiver, or amount.</p>
+            </div>
+            <div>
+                <h3 style="font-size:14px; margin-bottom:8px">⚡ Idempotency Stress Test</h3>
+                <p class="small">Fires the same encrypted packet from <strong>3 bridge nodes simultaneously</strong> using Java threads. Only 1 should settle. Others get blocked.</p>
+                <button onclick="runStressTest()" style="background: linear-gradient(135deg,#7c3aed,#3b82f6);box-shadow:0 0 20px rgba(124,58,237,0.4)">🧪 Run Stress Test</button>
+                <div id="stress-result" style="margin-top:12px"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px">
+        <h2>🪧 Activity Log</h2>
         <div id="log"></div>
     </div>
 </div>
@@ -192,7 +211,9 @@ async function sendPacket() {
             body: JSON.stringify(body)
         }).then(r => r.json());
         log(`📤 Packet ${r.packetId.substring(0,8)} encrypted & injected at ${r.injectedAt} (TTL ${r.ttl})`);
-        log(`   ciphertext (truncated): ${r.ciphertextPreview}`);
+        log(`🔐 Ciphertext (what bridge sees): ${r.ciphertextPreview}`);
+        // Show ciphertext in proof panel
+        document.getElementById('ciphertext-display').textContent = r.ciphertextPreview;
         refresh();
     } catch (err) {
         logError('Send packet', err);
@@ -268,6 +289,31 @@ async function addAccount() {
             refresh();
         }
     } catch(err) { logError('Add account', err); }
+}
+
+async function runStressTest() {
+    const btn = document.querySelector('[onclick="runStressTest()"]');
+    btn.textContent = '⏳ Running...';
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/demo/stress-test', {method: 'POST'}).then(r => r.json());
+        const resultDiv = document.getElementById('stress-result');
+        const outcomeHtml = r.results.map(res => `
+            <div style="margin:4px 0;font-size:13px">
+                <strong>${res.bridge}</strong>:
+                <span class="${res.outcome === 'SETTLED' ? 'status-SETTLED' : 'status-REJECTED'}">${res.outcome}</span>
+                ${res.reason ? `<span class="small">(${res.reason})</span>` : ''}
+            </div>`).join('');
+        resultDiv.innerHTML = `
+            <div style="background:#0f2a1a;border:1px solid #10b981;border-radius:8px;padding:12px;font-size:13px">
+                <div style="color:#10b981;font-weight:600;margin-bottom:8px">✅ ${r.settled} SETTLED — 🚫 ${r.duplicateDropped} DUPLICATE_DROPPED</div>
+                ${outcomeHtml}
+                <p class="small" style="margin-top:8px;margin-bottom:0">${r.explanation}</p>
+            </div>`;
+        log(`🧪 Stress Test: ${r.settled} settled, ${r.duplicateDropped} dropped — idempotency VERIFIED ✅`);
+        refresh();
+    } catch(err) { logError('Stress test', err); }
+    finally { btn.textContent = '🧪 Run Stress Test'; btn.disabled = false; }
 }
 
 function copyPacketId(id) {

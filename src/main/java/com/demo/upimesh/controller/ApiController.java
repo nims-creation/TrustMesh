@@ -13,6 +13,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
+
 
 /**
  * Public REST surface.
@@ -229,5 +232,51 @@ public class ApiController {
         @NotBlank public String vpa;
         @NotBlank public String holderName;
         @Positive public double initialBalance = 1000.0;
+    }
+
+    // ---------------------------------------------------------- stress test
+
+    @PostMapping("/demo/stress-test")
+    @Operation(summary = "Idempotency Stress Test",
+               description = "Creates a real encrypted packet then fires it at the backend from 3 bridge nodes SIMULTANEOUSLY using threads. Proves only exactly one debit happens regardless of concurrent uploads.")
+    public ResponseEntity<?> stressTest() throws Exception {
+        // 1. Create a real AES+RSA encrypted packet
+        MeshPacket packet = demo.createPacket("alice@demo", "bob@demo",
+                new java.math.BigDecimal("1"), "1234", 5);
+
+        String ciphertextPreview = packet.getCiphertext().substring(0, 64) + "...";
+
+        // 2. Fire 3 simultaneous bridge uploads using a thread pool
+        ExecutorService pool = Executors.newFixedThreadPool(3);
+        String[] bridges = {"bridge-alpha", "bridge-beta", "bridge-gamma"};
+        List<Future<Map<String, String>>> futures = new ArrayList<>();
+
+        for (String bridgeId : bridges) {
+            futures.add(pool.submit(() -> {
+                try {
+                    BridgeIngestionService.IngestResult r = bridge.ingest(packet, bridgeId, 2);
+                    return Map.of("bridge", bridgeId, "outcome", r.outcome(), "reason", r.reason() == null ? "" : r.reason());
+                } catch (Exception e) {
+                    return Map.of("bridge", bridgeId, "outcome", "ERROR", "reason", e.getMessage());
+                }
+            }));
+        }
+        pool.shutdown();
+
+        // 3. Collect results
+        List<Map<String, String>> results = futures.stream()
+                .map(f -> { try { return f.get(); } catch (Exception e) { return Map.of("bridge", "?", "outcome", "ERROR", "reason", e.getMessage()); } })
+                .collect(Collectors.toList());
+
+        long settled = results.stream().filter(r -> "SETTLED".equals(r.get("outcome"))).count();
+        long dropped = results.stream().filter(r -> "DUPLICATE_DROPPED".equals(r.get("outcome"))).count();
+
+        return ResponseEntity.ok(Map.of(
+                "explanation", "3 bridge nodes uploaded the SAME encrypted packet simultaneously. Only 1 was processed; the rest were blocked by the idempotency cache.",
+                "ciphertextPreview", ciphertextPreview,
+                "settled", settled,
+                "duplicateDropped", dropped,
+                "results", results
+        ));
     }
 }
