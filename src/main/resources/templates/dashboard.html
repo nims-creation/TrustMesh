@@ -91,6 +91,7 @@
             <div>
                 <h3 style="font-size:14px; margin-bottom:8px">⚡ Idempotency Stress Test</h3>
                 <p class="small">Fires the same encrypted packet from <strong>3 bridge nodes simultaneously</strong> using Java threads. Only 1 should settle. Others get blocked.</p>
+                <p class="small" style="color:#f59e0b">⚠️ This test uses a fixed ₹1 packet — the goal is to prove idempotency, not to test the amount.</p>
                 <button onclick="runStressTest()" style="background: linear-gradient(135deg,#7c3aed,#3b82f6);box-shadow:0 0 20px rgba(124,58,237,0.4)">🧪 Run Stress Test</button>
                 <div id="stress-result" style="margin-top:12px"></div>
             </div>
@@ -198,13 +199,16 @@ async function refresh() {
 
 async function sendPacket() {
     try {
+        const senderVpa = document.getElementById('senderVpa').value;
+        // Map VPA to device name (e.g. alice@demo → phone-alice)
+        const deviceName = 'phone-' + senderVpa.split('@')[0];
         const body = {
-            senderVpa: document.getElementById('senderVpa').value,
+            senderVpa: senderVpa,
             receiverVpa: document.getElementById('receiverVpa').value,
             amount: parseFloat(document.getElementById('amount').value),
             pin: document.getElementById('pin').value,
             ttl: 5,
-            startDevice: 'phone-alice'
+            startDevice: deviceName
         };
         const r = await fetch('/api/demo/send', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
