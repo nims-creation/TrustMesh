@@ -1,13 +1,11 @@
 services:
   - type: web
     name: trustmesh
-    runtime: docker
-    dockerfilePath: ./Dockerfile
+    runtime: java
+    buildCommand: ./mvnw clean package -DskipTests
+    startCommand: java -jar target/*.jar
     plan: free
-    healthCheckPath: /
+    healthCheckPath: /api/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: dev
-      - key: PORT
-        value: 8080
-    autoDeploy: true
