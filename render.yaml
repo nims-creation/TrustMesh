@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: trustmesh
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: dev
+      - key: PORT
+        value: 8080
+    autoDeploy: true
