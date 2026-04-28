@@ -56,6 +56,14 @@
                 <tbody></tbody>
             </table>
             <p class="small" id="cacheInfo"></p>
+            <hr style="border-color: var(--border-color); margin: 12px 0">
+            <h3 style="margin-top:0; font-size:14px">➕ Add New Account</h3>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+                <input type="text" id="newVpa" placeholder="VPA (e.g. raj@demo)" style="width:160px">
+                <input type="text" id="newName" placeholder="Holder Name" style="width:140px">
+                <input type="number" id="newBalance" placeholder="Balance" value="1000" style="width:100px">
+                <button onclick="addAccount()" style="margin:0">➕ Add</button>
+            </div>
         </div>
     </div>
 
@@ -79,7 +87,11 @@
 <script>
 function log(msg) {
     const el = document.getElementById('log');
-    el.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n' + el.textContent;
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = '<span class="log-time">[' + new Date().toLocaleTimeString() + ']</span> ' + msg;
+    el.insertBefore(entry, el.firstChild);
+    if (el.children.length > 100) el.removeChild(el.lastChild);
 }
 
 function logError(context, err) {
@@ -105,7 +117,8 @@ async function refresh() {
             `Idempotency cache size: ${m.idempotencyCacheSize}`;
 
         // Accounts
-        const accs = await fetch('/api/accounts').then(r => r.json());
+        const accsRaw = await fetch('/api/accounts').then(r => r.json());
+        const accs = Array.isArray(accsRaw) ? accsRaw : [];
         document.querySelector('#accounts-table tbody').innerHTML = accs.map(a => `
             <tr><td>${a.vpa}</td><td>${a.holderName}</td>
                 <td class="balance">₹${parseFloat(a.balance).toFixed(2)}</td></tr>
@@ -232,6 +245,30 @@ document.addEventListener('visibilitychange', () => {
 });
 
 refresh();
+
+async function addAccount() {
+    const vpa = document.getElementById('newVpa').value.trim();
+    const holderName = document.getElementById('newName').value.trim();
+    const initialBalance = parseFloat(document.getElementById('newBalance').value) || 1000;
+    if (!vpa || !holderName) { showToast('⚠️ VPA and Holder Name are required!'); return; }
+    try {
+        const r = await fetch('/api/accounts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ vpa, holderName, initialBalance })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            showToast('❌ ' + (data.error || 'Failed to add account'));
+        } else {
+            showToast('✅ Account created: ' + vpa);
+            log('➕ New account added: ' + vpa + ' (' + holderName + ')');
+            document.getElementById('newVpa').value = '';
+            document.getElementById('newName').value = '';
+            refresh();
+        }
+    } catch(err) { logError('Add account', err); }
+}
 
 function copyPacketId(id) {
     navigator.clipboard.writeText(id);

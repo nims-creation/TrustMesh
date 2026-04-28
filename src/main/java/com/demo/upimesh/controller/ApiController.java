@@ -206,9 +206,28 @@ public class ApiController {
         return accountRepo.findAll();
     }
 
+
     @GetMapping("/transactions")
     @Operation(summary = "List Transactions", description = "Returns the latest 50 settled transactions for the dashboard ledger.")
     public List<Transaction> listTransactions() {
         return txRepo.findTop50ByOrderByIdDesc();
+    }
+
+    @PostMapping("/accounts")
+    @Operation(summary = "Create Account", description = "Creates a new demo account with a starting balance.")
+    public ResponseEntity<?> createAccount(@RequestBody @Valid CreateAccountRequest req) {
+        if (accountRepo.findById(req.vpa).isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "VPA already exists: " + req.vpa));
+        }
+        Account acc = new Account(req.vpa, req.holderName,
+                new java.math.BigDecimal(req.initialBalance));
+        accountRepo.save(acc);
+        return ResponseEntity.ok(acc);
+    }
+
+    public static class CreateAccountRequest {
+        @NotBlank public String vpa;
+        @NotBlank public String holderName;
+        @Positive public double initialBalance = 1000.0;
     }
 }
