@@ -37,16 +37,39 @@ public class MeshSimulatorService {
         devices.put("phone-bridge",  new VirtualDevice("phone-bridge",  true));
     }
 
+    /**
+     * Returns an unmodifiable live view of all registered virtual devices.
+     *
+     * <p>Callers iterate the returned collection to render the mesh topology
+     * on the dashboard. Because the underlying map is a {@link ConcurrentHashMap},
+     * iteration is safe but reflects a weakly-consistent snapshot.
+     *
+     * @return all virtual devices in the simulated mesh
+     */
     public Collection<VirtualDevice> getDevices() {
         return devices.values();
     }
 
+    /**
+     * Returns the device registered under {@code id}, or {@code null} if
+     * no such device exists.
+     *
+     * @param id the device identifier (e.g. {@code "phone-alice"})
+     * @return the matching device, or {@code null}
+     */
     public VirtualDevice getDevice(String id) {
         return devices.get(id);
     }
 
     /**
-     * Sender drops a packet into the mesh by handing it to their own device.
+     * Injects a freshly-encrypted {@link MeshPacket} into the mesh at the
+     * specified sender device. This simulates the moment a UPI sender phone
+     * encrypts the payment instruction and hands it off to its local BLE
+     * interface.
+     *
+     * @param senderDeviceId the device ID representing the sender's phone
+     * @param packet         the encrypted packet to broadcast
+     * @throws IllegalArgumentException if the device ID is not registered
      */
     public void inject(String senderDeviceId, MeshPacket packet) {
         VirtualDevice sender = devices.get(senderDeviceId);
@@ -120,6 +143,14 @@ public class MeshSimulatorService {
         return out;
     }
 
+    /**
+     * Resets all virtual devices by clearing their held packet queues.
+     *
+     * <p>This is a demo-only convenience: it simulates a "factory reset" of
+     * the mesh so that operators can start a fresh demonstration without
+     * restarting the server. The idempotency cache is cleared separately via
+     * {@link com.demo.upimesh.service.LocalIdempotencyService#clear()}.
+     */
     public void resetMesh() {
         devices.values().forEach(VirtualDevice::clear);
     }
