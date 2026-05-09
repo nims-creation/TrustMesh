@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 
 /**
@@ -209,11 +210,31 @@ public class ApiController {
         return accountRepo.findAll();
     }
 
+    @GetMapping("/accounts/{vpa}")
+    @Operation(summary = "Get Account by VPA", description = "Returns a single account by its Virtual Payment Address. Returns 404 if the VPA does not exist.")
+    public ResponseEntity<?> getAccountByVpa(@PathVariable String vpa) {
+        return accountRepo.findById(vpa)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 
     @GetMapping("/transactions")
     @Operation(summary = "List Transactions", description = "Returns the latest 50 settled transactions for the dashboard ledger.")
     public List<Transaction> listTransactions() {
         return txRepo.findTop50ByOrderByIdDesc();
+    }
+
+    // --------------------------------------------------------------- stats
+
+    @GetMapping("/stats")
+    @Operation(summary = "System Statistics", description = "Returns aggregated statistics: account count, transaction count, idempotency cache size, and mesh device summary.")
+    public ResponseEntity<PacketStats> getStats() {
+        long accountCount = StreamSupport.stream(accountRepo.findAll().spliterator(), false).count();
+        long txCount = StreamSupport.stream(txRepo.findAll().spliterator(), false).count();
+        int cacheSize = idempotency.size();
+        int totalDevices = mesh.getDevices().size();
+        long bridgeCount = mesh.getDevices().stream().filter(com.demo.upimesh.service.VirtualDevice::hasInternet).count();
+        return ResponseEntity.ok(new PacketStats(accountCount, txCount, cacheSize, totalDevices, bridgeCount));
     }
 
     @PostMapping("/accounts")
