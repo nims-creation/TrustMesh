@@ -1,0 +1,37 @@
+# EditorConfig — https://editorconfig.org
+# Ensures consistent formatting for all contributors regardless of IDE.
+
+root = true
+
+# ── Defaults (all files) ──────────────────────────────────────────────────────
+[*]
+charset                  = utf-8
+end_of_line              = lf
+indent_style             = space
+indent_size              = 4
+insert_final_newline     = true
+trim_trailing_whitespace = true
+
+# ── Java ─────────────────────────────────────────────────────────────────────
+[*.java]
+indent_size = 4
+
+# ── XML / Maven POM ──────────────────────────────────────────────────────────
+[*.xml]
+indent_size = 4
+
+# ── YAML / Properties ────────────────────────────────────────────────────────
+[*.{yml,yaml,properties}]
+indent_size = 2
+
+# ── JSON ─────────────────────────────────────────────────────────────────────
+[*.json]
+indent_size = 2
+
+# ── Markdown ─────────────────────────────────────────────────────────────────
+[*.md]
+trim_trailing_whitespace = false
+
+# ── Shell scripts ────────────────────────────────────────────────────────────
+[*.sh]
+end_of_line = lf
