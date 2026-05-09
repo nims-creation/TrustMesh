@@ -1,5 +1,6 @@
 package com.demo.upimesh.model;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -33,7 +34,8 @@ public class MeshPacket {
     private String packetId; // UUID, used by intermediates for gossip dedup
 
     @Min(0)
-    @Schema(description = "Hops remaining before the packet is dropped. Decremented by intermediate nodes.", example = "5")
+    @Max(10)
+    @Schema(description = "Hops remaining before the packet is dropped. Decremented by intermediate nodes. Must be between 0 and 10.", example = "5")
     private int ttl; // Hops remaining; intermediates decrement it
 
     @NotNull
