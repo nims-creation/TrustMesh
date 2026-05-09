@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 /**
  * Simulated bank account. In a real system this would live in the bank's core,
@@ -32,9 +33,14 @@ public class Account {
     @Version  // Optimistic locking — prevents lost updates on concurrent transfers
     private Long version;
 
+    /** Timestamp when this account was first registered in the system. */
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt = Instant.now();
+
     public Account(String vpa, String holderName, BigDecimal balance) {
         this.vpa = vpa;
         this.holderName = holderName;
         this.balance = balance;
+        this.createdAt = Instant.now();
     }
 }
