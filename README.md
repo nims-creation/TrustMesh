@@ -489,9 +489,11 @@ All endpoints are documented interactively at `/swagger-ui.html`.
 | `POST` | `/api/mesh/reset` | Clear mesh state and idempotency cache (demo reset) |
 | `POST` | `/api/bridge/ingest` | **Core production endpoint**: ingest encrypted packet from a real bridge node |
 | `GET` | `/api/accounts` | List all accounts and current balances |
+| `GET` | `/api/accounts/{vpa}` | Look up a single account by VPA — returns `404` if not found |
 | `POST` | `/api/accounts` | Create a new demo account |
 | `GET` | `/api/transactions` | List latest 50 settled transactions |
-| `GET` | `/api/health` | Health check endpoint |
+| `GET` | `/api/stats` | Aggregated snapshot: account count, tx count, cache size, mesh device summary |
+| `GET` | `/api/health` | Health check — includes JVM uptime, Java version, free/max memory, DB counts |
 
 ---
 

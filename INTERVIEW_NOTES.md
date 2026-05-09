@@ -135,8 +135,11 @@ Optimistic = no lock → concurrent reads, conflict sirf tabhi handle karo jab h
 /api/mesh/flush          → Bridges upload karo
 /api/mesh/reset          → Demo reset
 /api/bridge/ingest       → THE production endpoint
-/api/accounts            → Balance check
-/api/transactions        → Ledger
+/api/accounts            → All accounts + balances
+/api/accounts/{vpa}      → Single account by VPA (404 if not found)
+/api/transactions        → Ledger (latest 50)
+/api/stats               → Aggregated snapshot: accounts, txns, cache, mesh
+/api/health              → Enriched health: DB + JVM uptime + memory
 ```
 
 **Q: `/api/bridge/ingest` pe X-Bridge-Node-Id header kyun?**
@@ -288,6 +291,18 @@ Layer 5: @Version optimistic lock (concurrent balance update)
 - [x] RequestLoggingFilter — every API call logged with timing
 - [x] /api/health endpoint — 200 UP / 503 DOWN (load balancer ready)
 
+### Phase 6 — v1.1.0 Enhancements ✅ DONE
+- [x] `Account.createdAt` field — records account registration timestamp (`updatable = false`)
+- [x] `GET /api/accounts/{vpa}` — single-account lookup, clean 404 if VPA not found
+- [x] `GET /api/stats` — `PacketStats` record: account count, tx count, cache size, device summary
+- [x] `GET /api/health` enriched — JVM uptime (formatted), Java version, processors, free/max memory via `RuntimeMXBean`
+- [x] `@Max(10)` on `MeshPacket.ttl` — rejects unreasonably large hop counts at validation layer
+- [x] `AccountEntityTest` — 5 focused unit tests, no Spring context, pure JUnit 5 + AssertJ
+- [x] `MeshSimulatorService` full Javadoc — all public methods documented
+- [x] `.editorconfig` — UTF-8, LF, 4-space Java indentation enforced project-wide
+- [x] Startup banner — logs Dashboard, Swagger, Health, Stats URLs on `ApplicationReadyEvent`
+- [x] `spring.application.name=TrustMesh` set in properties
+
 ---
 
 ## 💡 Interview Mein Pooche Jaane Wale Questions
@@ -328,7 +343,24 @@ Layer 5: @Version optimistic lock (concurrent balance update)
 12. **GlobalExceptionHandler mein InsufficientFunds ke liye 422 kyun, 400 nahi?**
     → 400 = bad request (invalid input). 422 = semantically correct request, business rule failed. Semantically more accurate — the request was valid, just the balance was low.
 
+13. **`/api/accounts/{vpa}` endpoint mein 404 kaise return kiya?**
+    → `accountRepo.findById(vpa)` `Optional<Account>` return karta hai. `.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build())` — clean, no `if`/`else`.
+
+14. **`/api/stats` mein `PacketStats` Java Record kyun use kiya, class kyun nahi?**
+    → Record = immutable DTO by default. Compiler generates constructor, getters, equals, hashCode, toString automatically. DTO ke liye perfect — no Spring dependency, pure Java.
+
+15. **`/api/health` mein JVM metrics kaise add kiye bina Actuator ke?**
+    → `ManagementFactory.getRuntimeMXBean().getUptime()` gives JVM uptime in ms. `Runtime.getRuntime().freeMemory()` for memory. Standard Java — no external library needed.
+
+16. **`@Max(10)` TTL pe kyun lagaya?**
+    → `@Min(0)` already tha. Bina upper bound ke, attacker TTL=99999 bhej sakta tha — packet gossip mein bahut zyada hops karta. `@Max(10)` API layer pe hi reject karta hai — before it even touches mesh logic.
+
+17. **`Account.createdAt` pe `updatable = false` kyun?**
+    → Registration timestamp ek immutable fact hai. `updatable = false` ensure karta hai ki koi bhi `save()` call accidentally createdAt overwrite na kare — DB column constraint se enforce hota hai.
+
+18. **Startup banner `@EventListener(ApplicationReadyEvent.class)` se kyun, `@PostConstruct` se kyun nahi?**
+    → `@PostConstruct` bean initialization pe fire hota hai — embedded server tab tak ready nahi hota. `ApplicationReadyEvent` tab fire hota hai jab server actually requests accept karne lag jaata hai. Isliye port number bhi `local.server.port` se correctly milta hai.
+
 ## ??? Architecture Diagram
 
 Check the README.md for the comprehensive Mermaid sequence diagram. It illustrates the exact flow from the offline sender, through the untrusted mesh gossip, reaching the bridge node, and finally processing through the API gateway, Idempotency Cache, and Settlement Ledger.
-
