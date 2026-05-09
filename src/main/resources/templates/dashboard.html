@@ -1,129 +1,154 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>UPI Offline Mesh — Demo</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
+
 <body>
-<div class="container">
-    <h1>📡 UPI Offline Mesh — Live Demo <span id="health-badge" class="badge badge-offline">Backend: Checking...</span></h1>
-    <p class="small">
-        Send money in a basement with zero internet. Encrypted packets gossip from phone to phone
-        until one with 4G reaches the backend.
-    </p>
+    <div class="container">
+        <h1>📡 UPI Offline Mesh — Live Demo <span id="health-badge" class="badge badge-offline">Backend:
+                Checking...</span></h1>
+        <p class="small">
+            Send money in a basement with zero internet. Encrypted packets gossip from phone to phone
+            until one with 4G reaches the backend.
+        </p>
 
-    <div class="controls">
-        <h3 style="margin-top:0">🎬 Demo Flow</h3>
+        <div class="controls">
+            <h3 style="margin-top:0">🎬 Demo Flow</h3>
 
-        <div>
-            <span class="step-num">1</span><strong>Compose payment</strong> (simulates sender phone)
-            <br>
-            <select id="senderVpa"></select>
-            →
-            <select id="receiverVpa"></select>
-            ₹<input type="number" id="amount" value="500" style="width: 100px">
-            PIN <input type="text" id="pin" value="1234" style="width: 80px" maxlength="4">
-            <button onclick="sendPacket()">📤 Inject into Mesh</button>
+            <div>
+                <span class="step-num">1</span><strong>Compose payment</strong> (simulates sender phone)
+                <br>
+                <select id="senderVpa"></select>
+                →
+                <select id="receiverVpa"></select>
+                ₹<input type="number" id="amount" value="500" style="width: 100px">
+                PIN <input type="text" id="pin" value="1234" style="width: 80px" maxlength="4">
+                <button onclick="sendPacket()">📤 Inject into Mesh</button>
+            </div>
+
+            <div style="margin-top: 16px">
+                <span class="step-num">2</span><strong>Gossip</strong> — packets hop device-to-device
+                <button class="secondary" onclick="gossip()">🔄 Run Gossip Round</button>
+            </div>
+
+            <div style="margin-top: 16px">
+                <span class="step-num">3</span><strong>Bridge node walks outside, hits 4G</strong>
+                <button class="secondary" onclick="flushBridges()">📡 Bridges Upload to Backend</button>
+                <span class="small">(parallel — exercises idempotency)</span>
+            </div>
+
+            <div style="margin-top: 16px">
+                <button class="danger" onclick="resetMesh()">🗑 Reset Mesh + Cache</button>
+            </div>
         </div>
 
-        <div style="margin-top: 16px">
-            <span class="step-num">2</span><strong>Gossip</strong> — packets hop device-to-device
-            <button class="secondary" onclick="gossip()">🔄 Run Gossip Round</button>
+        <div class="grid grid-2">
+            <div class="card">
+                <h2>📱 Mesh Devices</h2>
+                <div id="devices"></div>
+            </div>
+
+            <div class="card">
+                <h2>🏦 Account Balances</h2>
+                <table id="accounts-table">
+                    <thead>
+                        <tr>
+                            <th>VPA</th>
+                            <th>Holder</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <p class="small" id="cacheInfo"></p>
+                <hr style="border-color: var(--border-color); margin: 12px 0">
+                <h3 style="margin-top:0; font-size:14px">➕ Add New Account</h3>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+                    <input type="text" id="newVpa" placeholder="VPA (e.g. raj@demo)" style="width:160px">
+                    <input type="text" id="newName" placeholder="Holder Name" style="width:140px">
+                    <input type="number" id="newBalance" placeholder="Initial Balance ₹" value="1000"
+                        style="width:130px" onfocus="this.select()">
+                    <button onclick="addAccount()" style="margin:0">➕ Add</button>
+                </div>
+            </div>
         </div>
 
-        <div style="margin-top: 16px">
-            <span class="step-num">3</span><strong>Bridge node walks outside, hits 4G</strong>
-            <button class="secondary" onclick="flushBridges()">📡 Bridges Upload to Backend</button>
-            <span class="small">(parallel — exercises idempotency)</span>
-        </div>
-
-        <div style="margin-top: 16px">
-            <button class="danger" onclick="resetMesh()">🗑 Reset Mesh + Cache</button>
-        </div>
-    </div>
-
-    <div class="grid grid-2">
-        <div class="card">
-            <h2>📱 Mesh Devices</h2>
-            <div id="devices"></div>
-        </div>
-
-        <div class="card">
-            <h2>🏦 Account Balances</h2>
-            <table id="accounts-table">
-                <thead><tr><th>VPA</th><th>Holder</th><th>Balance</th></tr></thead>
+        <div class="card" style="margin-top: 16px">
+            <h2>📜 Transaction Ledger</h2>
+            <table id="tx-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Bridge</th>
+                        <th>Hops</th>
+                        <th>Settled</th>
+                    </tr>
+                </thead>
                 <tbody></tbody>
             </table>
-            <p class="small" id="cacheInfo"></p>
-            <hr style="border-color: var(--border-color); margin: 12px 0">
-            <h3 style="margin-top:0; font-size:14px">➕ Add New Account</h3>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
-                <input type="text" id="newVpa" placeholder="VPA (e.g. raj@demo)" style="width:160px">
-                <input type="text" id="newName" placeholder="Holder Name" style="width:140px">
-                <input type="number" id="newBalance" placeholder="Initial Balance ₹" value="1000" style="width:130px" onfocus="this.select()">
-                <button onclick="addAccount()" style="margin:0">➕ Add</button>
-            </div>
         </div>
-    </div>
 
-    <div class="card" style="margin-top: 16px">
-        <h2>📜 Transaction Ledger</h2>
-        <table id="tx-table">
-            <thead><tr>
-                <th>ID</th><th>From</th><th>To</th><th>Amount</th>
-                <th>Status</th><th>Bridge</th><th>Hops</th><th>Settled</th>
-            </tr></thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <div class="card" style="margin-top: 16px">
-        <h2>🔌 Under The Hood — Proof This Isn't Just Add/Subtract</h2>
-        <div class="grid grid-2" style="gap:16px">
-            <div>
-                <h3 style="font-size:14px; margin-bottom:8px">🔐 Last Encrypted Ciphertext (What Bridge Node Sees)</h3>
-                <div id="ciphertext-display" style="font-family:'JetBrains Mono',monospace;font-size:11px;background:#020617;padding:12px;border-radius:8px;border:1px solid #1e3a5f;word-break:break-all;color:#60a5fa;min-height:60px">
-                    <span style="color:#475569">Inject a packet to see the encrypted ciphertext...</span>
+        <div class="card" style="margin-top: 16px">
+            <h2>🔌 Under The Hood — Proof This Isn't Just Add/Subtract</h2>
+            <div class="grid grid-2" style="gap:16px">
+                <div>
+                    <h3 style="font-size:14px; margin-bottom:8px">🔐 Last Encrypted Ciphertext (What Bridge Node Sees)
+                    </h3>
+                    <div id="ciphertext-display"
+                        style="font-family:'JetBrains Mono',monospace;font-size:11px;background:#020617;padding:12px;border-radius:8px;border:1px solid #1e3a5f;word-break:break-all;color:#60a5fa;min-height:60px">
+                        <span style="color:#475569">Inject a packet to see the encrypted ciphertext...</span>
+                    </div>
+                    <p class="small" style="margin-top:6px">💡 The bridge node sees ONLY this opaque blob — it cannot
+                        read sender, receiver, or amount.</p>
                 </div>
-                <p class="small" style="margin-top:6px">💡 The bridge node sees ONLY this opaque blob — it cannot read sender, receiver, or amount.</p>
+                <div>
+                    <h3 style="font-size:14px; margin-bottom:8px">⚡ Idempotency Stress Test</h3>
+                    <p class="small">Fires the same encrypted packet from <strong>3 bridge nodes simultaneously</strong>
+                        using Java threads. Only 1 should settle. Others get blocked.</p>
+                    <p class="small" style="color:#f59e0b">⚠️ This test uses a fixed ₹1 packet — the goal is to prove
+                        idempotency, not to test the amount.</p>
+                    <button onclick="runStressTest()"
+                        style="background: linear-gradient(135deg,#7c3aed,#3b82f6);box-shadow:0 0 20px rgba(124,58,237,0.4)">🧪
+                        Run Stress Test</button>
+                    <div id="stress-result" style="margin-top:12px"></div>
+                </div>
             </div>
-            <div>
-                <h3 style="font-size:14px; margin-bottom:8px">⚡ Idempotency Stress Test</h3>
-                <p class="small">Fires the same encrypted packet from <strong>3 bridge nodes simultaneously</strong> using Java threads. Only 1 should settle. Others get blocked.</p>
-                <p class="small" style="color:#f59e0b">⚠️ This test uses a fixed ₹1 packet — the goal is to prove idempotency, not to test the amount.</p>
-                <button onclick="runStressTest()" style="background: linear-gradient(135deg,#7c3aed,#3b82f6);box-shadow:0 0 20px rgba(124,58,237,0.4)">🧪 Run Stress Test</button>
-                <div id="stress-result" style="margin-top:12px"></div>
-            </div>
+        </div>
+
+        <div class="card" style="margin-top: 16px">
+            <h2>🪧 Activity Log</h2>
+            <div id="log"></div>
         </div>
     </div>
 
-    <div class="card" style="margin-top: 16px">
-        <h2>🪧 Activity Log</h2>
-        <div id="log"></div>
-    </div>
-</div>
+    <script>
+        function log(msg) {
+            const el = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = '<span class="log-time">[' + new Date().toLocaleTimeString() + ']</span> ' + msg;
+            el.insertBefore(entry, el.firstChild);
+            if (el.children.length > 100) el.removeChild(el.lastChild);
+        }
 
-<script>
-function log(msg) {
-    const el = document.getElementById('log');
-    const entry = document.createElement('div');
-    entry.className = 'log-entry';
-    entry.innerHTML = '<span class="log-time">[' + new Date().toLocaleTimeString() + ']</span> ' + msg;
-    el.insertBefore(entry, el.firstChild);
-    if (el.children.length > 100) el.removeChild(el.lastChild);
-}
+        function logError(context, err) {
+            log(`❌ ${context} failed: ${err.message || err}`);
+        }
 
-function logError(context, err) {
-    log(`❌ ${context} failed: ${err.message || err}`);
-}
-
-async function refresh() {
-    try {
-        // Mesh state
-        const m = await fetch('/api/mesh/state').then(r => r.json());
-        const devicesDiv = document.getElementById('devices');
-        devicesDiv.innerHTML = m.devices.map(d => `
+        async function refresh() {
+            try {
+                // Mesh state
+                const m = await fetch('/api/mesh/state').then(r => r.json());
+                const devicesDiv = document.getElementById('devices');
+                devicesDiv.innerHTML = m.devices.map(d => `
             <div class="device ${d.hasInternet ? 'bridge' : 'offline'}">
                 <strong>${d.deviceId}</strong>
                 <span class="badge ${d.hasInternet ? 'badge-online' : 'badge-offline'}">
@@ -133,46 +158,46 @@ async function refresh() {
                 <div>${d.packetIds.map(id => `<span class="packet-id" onclick="copyPacketId('${id}')" title="Click to copy">${id}</span>`).join('')}</div>
             </div>
         `).join('');
-        document.getElementById('cacheInfo').textContent =
-            `Idempotency cache size: ${m.idempotencyCacheSize}`;
+                document.getElementById('cacheInfo').textContent =
+                    `Idempotency cache size: ${m.idempotencyCacheSize}`;
 
-        // Accounts
-        const accsRaw = await fetch('/api/accounts').then(r => r.json());
-        const accs = Array.isArray(accsRaw) ? accsRaw : [];
-        document.querySelector('#accounts-table tbody').innerHTML = accs.map(a => `
+                // Accounts
+                const accsRaw = await fetch('/api/accounts').then(r => r.json());
+                const accs = Array.isArray(accsRaw) ? accsRaw : [];
+                document.querySelector('#accounts-table tbody').innerHTML = accs.map(a => `
             <tr><td>${a.vpa}</td><td>${a.holderName}</td>
                 <td class="balance">₹${parseFloat(a.balance).toFixed(2)}</td></tr>
         `).join('');
 
-        // Dynamically populate dropdowns
-        const senderSelect = document.getElementById('senderVpa');
-        const receiverSelect = document.getElementById('receiverVpa');
-        if (senderSelect.options.length !== accs.length && accs.length > 0) {
-            const currentSender = senderSelect.value;
-            const currentReceiver = receiverSelect.value;
-            
-            senderSelect.innerHTML = '';
-            receiverSelect.innerHTML = '';
-            
-            accs.forEach(a => {
-                senderSelect.add(new Option(a.vpa, a.vpa));
-                receiverSelect.add(new Option(a.vpa, a.vpa));
-            });
-            
-            // Restore selection or set defaults
-            if (currentSender && [...senderSelect.options].some(o => o.value === currentSender)) {
-                senderSelect.value = currentSender;
-            }
-            if (currentReceiver && [...receiverSelect.options].some(o => o.value === currentReceiver)) {
-                receiverSelect.value = currentReceiver;
-            } else if (accs.length > 1) {
-                receiverSelect.selectedIndex = 1; // Default to different receiver
-            }
-        }
+                // Dynamically populate dropdowns
+                const senderSelect = document.getElementById('senderVpa');
+                const receiverSelect = document.getElementById('receiverVpa');
+                if (senderSelect.options.length !== accs.length && accs.length > 0) {
+                    const currentSender = senderSelect.value;
+                    const currentReceiver = receiverSelect.value;
 
-        // Transactions
-        const txs = await fetch('/api/transactions').then(r => r.json());
-        document.querySelector('#tx-table tbody').innerHTML = txs.map(t => `
+                    senderSelect.innerHTML = '';
+                    receiverSelect.innerHTML = '';
+
+                    accs.forEach(a => {
+                        senderSelect.add(new Option(a.vpa, a.vpa));
+                        receiverSelect.add(new Option(a.vpa, a.vpa));
+                    });
+
+                    // Restore selection or set defaults
+                    if (currentSender && [...senderSelect.options].some(o => o.value === currentSender)) {
+                        senderSelect.value = currentSender;
+                    }
+                    if (currentReceiver && [...receiverSelect.options].some(o => o.value === currentReceiver)) {
+                        receiverSelect.value = currentReceiver;
+                    } else if (accs.length > 1) {
+                        receiverSelect.selectedIndex = 1; // Default to different receiver
+                    }
+                }
+
+                // Transactions
+                const txs = await fetch('/api/transactions').then(r => r.json());
+                document.querySelector('#tx-table tbody').innerHTML = txs.map(t => `
             <tr class="${t.status === 'SETTLED' ? 'highlight-settled' : ''}">
                 <td>${t.id}</td><td>${t.senderVpa}</td><td>${t.receiverVpa}</td>
                 <td class="balance">₹${parseFloat(t.amount).toFixed(2)}</td>
@@ -182,160 +207,161 @@ async function refresh() {
             </tr>
         `).join('');
 
-        // Health Check
-        fetch('/api/health').then(r => r.json()).then(h => {
-            const b = document.getElementById('health-badge');
-            b.className = 'badge badge-online';
-            b.textContent = 'Backend: UP';
-        }).catch(() => {
-            const b = document.getElementById('health-badge');
-            b.className = 'badge badge-offline';
-            b.textContent = 'Backend: DOWN';
-        });
-    } catch (err) {
-        logError('Auto-refresh', err);
-    }
-}
-
-async function sendPacket() {
-    try {
-        const senderVpa = document.getElementById('senderVpa').value;
-        // Map VPA to device name (e.g. alice@demo → phone-alice)
-        const deviceName = 'phone-' + senderVpa.split('@')[0];
-        const body = {
-            senderVpa: senderVpa,
-            receiverVpa: document.getElementById('receiverVpa').value,
-            amount: parseFloat(document.getElementById('amount').value),
-            pin: document.getElementById('pin').value,
-            ttl: 5,
-            startDevice: deviceName
-        };
-        const r = await fetch('/api/demo/send', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body)
-        }).then(r => r.json());
-        log(`📤 Packet ${r.packetId.substring(0,8)} encrypted & injected at ${r.injectedAt} (TTL ${r.ttl})`);
-        log(`🔐 Ciphertext (what bridge sees): ${r.ciphertextPreview}`);
-        // Show ciphertext in proof panel
-        document.getElementById('ciphertext-display').textContent = r.ciphertextPreview;
-        refresh();
-    } catch (err) {
-        logError('Send packet', err);
-    }
-}
-
-async function gossip() {
-    try {
-        const r = await fetch('/api/mesh/gossip', {method: 'POST'}).then(r => r.json());
-        log(`🔄 Gossip: ${r.transfers} transfer(s) — ${JSON.stringify(r.deviceCounts)}`);
-        refresh();
-    } catch (err) {
-        logError('Gossip', err);
-    }
-}
-
-async function flushBridges() {
-    try {
-        const r = await fetch('/api/mesh/flush', {method: 'POST'}).then(r => r.json());
-        log(`📡 ${r.uploadsAttempted} bridge upload(s):`);
-        r.results.forEach(res => {
-            log(`   ${res.bridgeNode} packet ${res.packetId} → ${res.outcome}` +
-                (res.reason ? ` (${res.reason})` : ''));
-        });
-        refresh();
-    } catch (err) {
-        logError('Bridge flush', err);
-    }
-}
-
-async function resetMesh() {
-    try {
-        await fetch('/api/mesh/reset', {method: 'POST'});
-        log('🗑 mesh + idempotency cache cleared');
-        refresh();
-    } catch (err) {
-        logError('Reset', err);
-    }
-}
-
-// Auto-refresh: pause when tab is hidden to save resources
-let refreshTimer = setInterval(refresh, 3000);
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        clearInterval(refreshTimer);
-    } else {
-        refresh();
-        refreshTimer = setInterval(refresh, 3000);
-    }
-});
-
-refresh();
-
-async function addAccount() {
-    const vpa = document.getElementById('newVpa').value.trim();
-    const holderName = document.getElementById('newName').value.trim();
-    const initialBalance = parseFloat(document.getElementById('newBalance').value) || 1000;
-    if (!vpa || !holderName) { showToast('⚠️ VPA and Holder Name are required!'); return; }
-    try {
-        const r = await fetch('/api/accounts', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ vpa, holderName, initialBalance })
-        });
-        const data = await r.json();
-        if (!r.ok) {
-            showToast('❌ ' + (data.error || 'Failed to add account'));
-        } else {
-            showToast('✅ Account created: ' + vpa);
-            log('➕ New account added: ' + vpa + ' (' + holderName + ')');
-            document.getElementById('newVpa').value = '';
-            document.getElementById('newName').value = '';
-            refresh();
+                // Health Check
+                fetch('/api/health').then(r => r.json()).then(h => {
+                    const b = document.getElementById('health-badge');
+                    b.className = 'badge badge-online';
+                    b.textContent = 'Backend: UP';
+                }).catch(() => {
+                    const b = document.getElementById('health-badge');
+                    b.className = 'badge badge-offline';
+                    b.textContent = 'Backend: DOWN';
+                });
+            } catch (err) {
+                logError('Auto-refresh', err);
+            }
         }
-    } catch(err) { logError('Add account', err); }
-}
 
-async function runStressTest() {
-    const btn = document.querySelector('[onclick="runStressTest()"]');
-    btn.textContent = '⏳ Running...';
-    btn.disabled = true;
-    try {
-        const r = await fetch('/api/demo/stress-test', {method: 'POST'}).then(r => r.json());
-        const resultDiv = document.getElementById('stress-result');
-        const outcomeHtml = r.results.map(res => `
+        async function sendPacket() {
+            try {
+                const senderVpa = document.getElementById('senderVpa').value;
+                // Map VPA to device name (e.g. alice@demo → phone-alice)
+                const deviceName = 'phone-' + senderVpa.split('@')[0];
+                const body = {
+                    senderVpa: senderVpa,
+                    receiverVpa: document.getElementById('receiverVpa').value,
+                    amount: parseFloat(document.getElementById('amount').value),
+                    pin: document.getElementById('pin').value,
+                    ttl: 5,
+                    startDevice: deviceName
+                };
+                const r = await fetch('/api/demo/send', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                }).then(r => r.json());
+                log(`📤 Packet ${r.packetId.substring(0, 8)} encrypted & injected at ${r.injectedAt} (TTL ${r.ttl})`);
+                log(`🔐 Ciphertext (what bridge sees): ${r.ciphertextPreview}`);
+                // Show ciphertext in proof panel
+                document.getElementById('ciphertext-display').textContent = r.ciphertextPreview;
+                refresh();
+            } catch (err) {
+                logError('Send packet', err);
+            }
+        }
+
+        async function gossip() {
+            try {
+                const r = await fetch('/api/mesh/gossip', { method: 'POST' }).then(r => r.json());
+                log(`🔄 Gossip: ${r.transfers} transfer(s) — ${JSON.stringify(r.deviceCounts)}`);
+                refresh();
+            } catch (err) {
+                logError('Gossip', err);
+            }
+        }
+
+        async function flushBridges() {
+            try {
+                const r = await fetch('/api/mesh/flush', { method: 'POST' }).then(r => r.json());
+                log(`📡 ${r.uploadsAttempted} bridge upload(s):`);
+                r.results.forEach(res => {
+                    log(`   ${res.bridgeNode} packet ${res.packetId} → ${res.outcome}` +
+                        (res.reason ? ` (${res.reason})` : ''));
+                });
+                refresh();
+            } catch (err) {
+                logError('Bridge flush', err);
+            }
+        }
+
+        async function resetMesh() {
+            try {
+                await fetch('/api/mesh/reset', { method: 'POST' });
+                log('🗑 mesh + idempotency cache cleared');
+                refresh();
+            } catch (err) {
+                logError('Reset', err);
+            }
+        }
+
+        // Auto-refresh: pause when tab is hidden to save resources
+        let refreshTimer = setInterval(refresh, 3000);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(refreshTimer);
+            } else {
+                refresh();
+                refreshTimer = setInterval(refresh, 3000);
+            }
+        });
+
+        refresh();
+
+        async function addAccount() {
+            const vpa = document.getElementById('newVpa').value.trim();
+            const holderName = document.getElementById('newName').value.trim();
+            const initialBalance = parseFloat(document.getElementById('newBalance').value) || 1000;
+            if (!vpa || !holderName) { showToast('⚠️ VPA and Holder Name are required!'); return; }
+            try {
+                const r = await fetch('/api/accounts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vpa, holderName, initialBalance })
+                });
+                const data = await r.json();
+                if (!r.ok) {
+                    showToast('❌ ' + (data.error || 'Failed to add account'));
+                } else {
+                    showToast('✅ Account created: ' + vpa);
+                    log('➕ New account added: ' + vpa + ' (' + holderName + ')');
+                    document.getElementById('newVpa').value = '';
+                    document.getElementById('newName').value = '';
+                    refresh();
+                }
+            } catch (err) { logError('Add account', err); }
+        }
+
+        async function runStressTest() {
+            const btn = document.querySelector('[onclick="runStressTest()"]');
+            btn.textContent = '⏳ Running...';
+            btn.disabled = true;
+            try {
+                const r = await fetch('/api/demo/stress-test', { method: 'POST' }).then(r => r.json());
+                const resultDiv = document.getElementById('stress-result');
+                const outcomeHtml = r.results.map(res => `
             <div style="margin:4px 0;font-size:13px">
                 <strong>${res.bridge}</strong>:
                 <span class="${res.outcome === 'SETTLED' ? 'status-SETTLED' : 'status-REJECTED'}">${res.outcome}</span>
                 ${res.reason ? `<span class="small">(${res.reason})</span>` : ''}
             </div>`).join('');
-        resultDiv.innerHTML = `
+                resultDiv.innerHTML = `
             <div style="background:#0f2a1a;border:1px solid #10b981;border-radius:8px;padding:12px;font-size:13px">
                 <div style="color:#10b981;font-weight:600;margin-bottom:8px">✅ ${r.settled} SETTLED — 🚫 ${r.duplicateDropped} DUPLICATE_DROPPED</div>
                 ${outcomeHtml}
                 <p class="small" style="margin-top:8px;margin-bottom:0">${r.explanation}</p>
             </div>`;
-        log(`🧪 Stress Test: ${r.settled} settled, ${r.duplicateDropped} dropped — idempotency VERIFIED ✅`);
-        refresh();
-    } catch(err) { logError('Stress test', err); }
-    finally { btn.textContent = '🧪 Run Stress Test'; btn.disabled = false; }
-}
+                log(`🧪 Stress Test: ${r.settled} settled, ${r.duplicateDropped} dropped — idempotency VERIFIED ✅`);
+                refresh();
+            } catch (err) { logError('Stress test', err); }
+            finally { btn.textContent = '🧪 Run Stress Test'; btn.disabled = false; }
+        }
 
-function copyPacketId(id) {
-    navigator.clipboard.writeText(id);
-    showToast(`📋 Copied packet ID: ${id}`);
-}
+        function copyPacketId(id) {
+            navigator.clipboard.writeText(id);
+            showToast(`📋 Copied packet ID: ${id}`);
+        }
 
-function showToast(message) {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    container.appendChild(toast);
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
-</script>
-<div id="toast-container"></div>
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+    <div id="toast-container"></div>
 </body>
+
 </html>
