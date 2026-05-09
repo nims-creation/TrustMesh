@@ -10,7 +10,10 @@ import org.springframework.web.bind.annotation.RestController;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import java.lang.management.ManagementFactory;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -50,22 +53,35 @@ public class HealthController {
     @Operation(summary = "Get System Health", description = "Returns UP if the database is reachable, DOWN (503) otherwise. Also provides basic system metrics.")
     public ResponseEntity<Map<String, Object>> health() {
         try {
-            long accountCount = accounts.count();
-            long txCount = transactions.count();
-            return ResponseEntity.ok(Map.of(
-                    "status", "UP",
-                    "timestamp", Instant.now().toString(),
-                    "db", Map.of(
-                            "accounts", accountCount,
-                            "transactions", txCount
-                    ),
-                    "idempotencyCache", idempotency.size()
-            ));
+            long accountCount  = accounts.count();
+            long txCount       = transactions.count();
+
+            long uptimeMillis  = ManagementFactory.getRuntimeMXBean().getUptime();
+            Duration uptime    = Duration.ofMillis(uptimeMillis);
+            String uptimeStr   = String.format("%dd %02dh %02dm %02ds",
+                    uptime.toDaysPart(), uptime.toHoursPart(),
+                    uptime.toMinutesPart(), uptime.toSecondsPart());
+
+            Map<String, Object> jvm = new LinkedHashMap<>();
+            jvm.put("version",            System.getProperty("java.version"));
+            jvm.put("uptimeFormatted",    uptimeStr);
+            jvm.put("availableProcessors", Runtime.getRuntime().availableProcessors());
+            jvm.put("freeMemoryMb",       Runtime.getRuntime().freeMemory() / (1024 * 1024));
+            jvm.put("maxMemoryMb",        Runtime.getRuntime().maxMemory()  / (1024 * 1024));
+
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("status",            "UP");
+            body.put("timestamp",         Instant.now().toString());
+            body.put("db",                Map.of("accounts", accountCount, "transactions", txCount));
+            body.put("idempotencyCache",  idempotency.size());
+            body.put("jvm",               jvm);
+
+            return ResponseEntity.ok(body);
         } catch (Exception e) {
             // If the DB is unreachable, return 503 so load balancers stop routing here
             return ResponseEntity.status(503).body(Map.of(
                     "status", "DOWN",
-                    "error", e.getMessage()
+                    "error",  e.getMessage()
             ));
         }
     }
