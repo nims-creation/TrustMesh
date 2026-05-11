@@ -30,6 +30,26 @@
             until one with 4G reaches the backend.
         </p>
 
+        <!-- Live Stats Bar -->
+        <div class="stats-bar" id="stats-bar">
+            <div class="stat-item">
+                <span class="stat-value" id="stat-accounts">—</span>
+                <span class="stat-label">Accounts</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="stat-settled">—</span>
+                <span class="stat-label">Settled TXs</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="stat-packets">—</span>
+                <span class="stat-label">Packets in Mesh</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="stat-devices">—</span>
+                <span class="stat-label">Devices</span>
+            </div>
+        </div>
+
         <div class="controls" style="border: 1px solid #475569; border-radius: 8px; padding: 16px;">
             <h3 style="margin-top:0">🎬 Demo Flow</h3>
 
@@ -175,6 +195,12 @@
                 document.getElementById('cacheInfo').textContent =
                     `Idempotency cache size: ${m.idempotencyCacheSize}`;
 
+                // Update stats bar
+                const totalPackets = m.devices.reduce((sum, d) => sum + d.packetCount, 0);
+                document.getElementById('stat-devices').textContent = m.devices.length;
+                document.getElementById('stat-packets').textContent = totalPackets;
+
+
                 // Accounts
                 const accsRaw = await fetch('/api/accounts').then(r => r.json());
                 const accs = Array.isArray(accsRaw) ? accsRaw : [];
@@ -182,6 +208,7 @@
             <tr><td>${a.vpa}</td><td>${a.holderName}</td>
                 <td class="balance">₹${parseFloat(a.balance).toFixed(2)}</td></tr>
         `).join('');
+                document.getElementById('stat-accounts').textContent = accs.length;
 
                 // Dynamically populate dropdowns
                 const senderSelect = document.getElementById('senderVpa');
@@ -220,6 +247,8 @@
                 <td class="small">${new Date(t.settledAt).toLocaleTimeString()}</td>
             </tr>
         `).join('');
+                document.getElementById('stat-settled').textContent =
+                    txs.filter(t => t.status === 'SETTLED').length;
 
                 // Health Check
                 fetch('/api/health').then(r => r.json()).then(h => {
