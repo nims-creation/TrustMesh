@@ -365,3 +365,32 @@ select:focus, input:focus {
     letter-spacing: 0.8px;
     font-weight: 500;
 }
+
+/* ── Responsive / Mobile ─────────────────────────────────────── */
+@media (max-width: 768px) {
+    body { padding: 12px; }
+
+    .grid-2 { grid-template-columns: 1fr; }
+
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .stat-item:nth-child(2) { border-right: none; }
+
+    .nav-links { display: none; }
+
+    /* Stack form controls in demo panel */
+    .controls select,
+    .controls input,
+    .controls button { margin: 4px 0; width: 100%; }
+
+    table { font-size: 12px; }
+    th, td { padding: 8px 10px; }
+
+    h1 { font-size: 1.3rem; }
+    h2 { font-size: 1.1rem; }
+}
+
+@media (max-width: 480px) {
+    .stats-bar { grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+    .stat-value { font-size: 1.5rem; }
+    .container { padding: 12px !important; }
+}
