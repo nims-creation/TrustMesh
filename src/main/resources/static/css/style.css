@@ -394,3 +394,33 @@ select:focus, input:focus {
     .stat-value { font-size: 1.5rem; }
     .container { padding: 12px !important; }
 }
+
+/* ── Footer ────────────────────────────────────────────────────── */
+.site-footer {
+    margin-top: 32px;
+    border-top: 1px solid var(--border-color);
+    padding: 16px 0 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+.footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 4px;
+}
+.footer-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.tech-badge {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: var(--accent);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+}

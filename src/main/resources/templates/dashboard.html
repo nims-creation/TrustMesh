@@ -260,6 +260,10 @@
                     b.className = 'badge badge-offline';
                     b.textContent = 'Backend: DOWN';
                 });
+
+                // Update footer timestamp
+                const ts = document.getElementById('last-refreshed');
+                if (ts) ts.textContent = 'Last refresh: ' + new Date().toLocaleTimeString();
             } catch (err) {
                 logError('Auto-refresh', err);
             }
@@ -405,6 +409,19 @@
         }
     </script>
     <div id="toast-container"></div>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <span>🌐 <strong>TrustMesh</strong> — UPI Offline Mesh Demo</span>
+            <span class="footer-badges">
+                <span class="tech-badge">Spring Boot</span>
+                <span class="tech-badge">Thymeleaf</span>
+                <span class="tech-badge">AES-256</span>
+                <span class="tech-badge">Gossip Protocol</span>
+            </span>
+            <span class="small" id="last-refreshed">Last refresh: —</span>
+        </div>
+    </footer>
 </body>
 
 </html>
