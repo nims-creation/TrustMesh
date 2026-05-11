@@ -426,6 +426,22 @@
                 toast.remove();
             }, 3000);
         }
+
+        // ── Keyboard Shortcuts ─────────────────────────────────────
+        document.addEventListener('keydown', (e) => {
+            // Don't fire when typing in inputs
+            if (['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+            switch (e.key.toLowerCase()) {
+                case 'g': gossip();      showToast('⌨️ G → Run Gossip'); break;
+                case 'f': flushBridges(); showToast('⌨️ F → Flush Bridges'); break;
+                case 's': sendPacket();   showToast('⌨️ S → Send Packet'); break;
+                case 'r': if (!e.ctrlKey && !e.metaKey) { resetMesh(); showToast('⌨️ R → Reset Mesh'); } break;
+                case 'p': toggleRefresh(); break;
+                case '?':
+                    showToast('⌨️ Shortcuts: G=Gossip  F=Flush  S=Send  R=Reset  P=Pause/Resume');
+                    break;
+            }
+        });
     </script>
     <div id="toast-container"></div>
 
