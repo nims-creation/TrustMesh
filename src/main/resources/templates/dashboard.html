@@ -19,6 +19,7 @@
                 <a href="#demo-flow">Demo</a>
                 <a href="#accounts">Accounts</a>
                 <a href="#ledger">Ledger</a>
+                <button id="toggle-refresh-btn" onclick="toggleRefresh()" style="margin:0;padding:6px 14px;font-size:12px;box-shadow:none;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);">⏸ Pause</button>
             </div>
         </div>
     </nav>
@@ -342,6 +343,24 @@
         });
 
         refresh();
+
+        let refreshPaused = false;
+        function toggleRefresh() {
+            const btn = document.getElementById('toggle-refresh-btn');
+            if (refreshPaused) {
+                refreshTimer = setInterval(refresh, 3000);
+                btn.textContent = '⏸ Pause';
+                btn.style.background = 'rgba(59,130,246,0.15)';
+                refreshPaused = false;
+                showToast('▶️ Auto-refresh resumed');
+            } else {
+                clearInterval(refreshTimer);
+                btn.textContent = '▶️ Resume';
+                btn.style.background = 'rgba(239,68,68,0.15)';
+                refreshPaused = true;
+                showToast('⏸ Auto-refresh paused');
+            }
+        }
 
         async function addAccount() {
             const vpa = document.getElementById('newVpa').value.trim();
