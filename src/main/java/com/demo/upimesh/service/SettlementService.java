@@ -112,14 +112,28 @@ public class SettlementService {
     }
 
     /**
-     * Circuit breaker fallback — called when the circuit is OPEN.
+     * Circuit breaker fallback — called when:
+     *   (a) the circuit is OPEN (CallNotPermittedException), OR
+     *   (b) the settle() method throws ANY exception.
      *
-     * Returns a sentinel Transaction with status CIRCUIT_OPEN so that
-     * BridgeIngestionService can log it and return INVALID to the client
-     * with a meaningful reason, instead of propagating a raw exception.
+     * IMPORTANT: We only act as a sentinel for case (a).
+     * For case (b) — business/domain exceptions like InsufficientFundsException
+     * or IllegalArgumentException — we RETHROW so that BridgeIngestionService's
+     * catch blocks handle them correctly.
+     *
+     * Without this check, InsufficientFundsException would be swallowed here
+     * and the caller would see "circuit_breaker_open" instead of "insufficient_funds".
      */
     public Transaction settleFallback(PaymentInstruction instruction, String packetHash,
                                       String bridgeNodeId, int hopCount, Throwable cause) {
+
+        // Only act as circuit-open sentinel for CallNotPermittedException.
+        // All other exceptions (business rules, validation) must propagate normally.
+        if (!(cause instanceof io.github.resilience4j.circuitbreaker.CallNotPermittedException)) {
+            if (cause instanceof RuntimeException re) throw re;
+            throw new RuntimeException("Settlement failed: " + cause.getMessage(), cause);
+        }
+
         log.error("[circuit-breaker] Settlement circuit OPEN — rejecting packet {}… Cause: {}",
                 packetHash.substring(0, 12), cause.getMessage());
 

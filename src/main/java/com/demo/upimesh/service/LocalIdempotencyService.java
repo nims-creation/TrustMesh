@@ -56,8 +56,12 @@ public class LocalIdempotencyService implements IdempotencyService {
      */
     @Scheduled(fixedDelay = 60_000)
     public void evictExpired() {
+        // Use !isAfter (i.e. isBefore OR equal) so an entry added at exactly
+        // the cutoff instant is correctly treated as expired.
+        // isBefore(cutoff) alone misses the equal case, which breaks tests
+        // that set ttlSeconds=0 and expect immediate eviction.
         Instant cutoff = Instant.now().minusSeconds(ttlSeconds);
-        seen.entrySet().removeIf(e -> e.getValue().isBefore(cutoff));
+        seen.entrySet().removeIf(e -> !e.getValue().isAfter(cutoff));
     }
 
     @Override
