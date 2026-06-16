@@ -1,8 +1,8 @@
 package com.demo.upimesh.service;
 
 import com.demo.upimesh.model.MeshPacket;
-import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,9 +24,11 @@ public class MeshSimulatorService {
 
     private final Map<String, VirtualDevice> devices = new ConcurrentHashMap<>();
     private final MeshMetricsService metrics;
+    private final MeshEventPublisher events;
 
-    public MeshSimulatorService(MeshMetricsService metrics) {
+    public MeshSimulatorService(MeshMetricsService metrics, MeshEventPublisher events) {
         this.metrics = metrics;
+        this.events  = events;
         // Default scenario: 4 offline phones in a basement, 1 phone outside with 4G
         seedDefaultDevices();
     }
@@ -79,6 +81,7 @@ public class MeshSimulatorService {
         sender.hold(packet);
         log.info("Packet {} injected at {} (TTL={})",
                 packet.getPacketId().substring(0, 8), senderDeviceId, packet.getTtl());
+        events.gossipRound(0, snapshotMap()); // notify topology changed
     }
 
     /**
@@ -120,7 +123,9 @@ public class MeshSimulatorService {
 
         log.info("Gossip round complete: {} packet transfers", transfers);
         metrics.recordGossipRound();
-        return new GossipResult(transfers, snapshotMap());
+        GossipResult result = new GossipResult(transfers, snapshotMap());
+        events.gossipRound(transfers, result.deviceCounts());
+        return result;
     }
 
     public Map<String, Integer> snapshotMap() {
@@ -157,6 +162,7 @@ public class MeshSimulatorService {
      */
     public void resetMesh() {
         devices.values().forEach(VirtualDevice::clear);
+        events.meshReset();
     }
 
     public record GossipResult(int transfers, Map<String, Integer> deviceCounts) {}

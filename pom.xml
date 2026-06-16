@@ -111,6 +111,12 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
+        <!-- Spring WebSocket — STOMP over SockJS for real-time mesh events -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
         <!-- Test scope -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

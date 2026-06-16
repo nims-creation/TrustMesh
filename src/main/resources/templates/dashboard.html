@@ -9,6 +9,9 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>">
     <title>TrustMesh — UPI Offline Mesh Demo</title>
     <link rel="stylesheet" href="/css/style.css">
+    <!-- SockJS + STOMP: WebSocket client with HTTP long-poll fallback -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
 </head>
 
 <body>
@@ -473,6 +476,77 @@
             if (document.hidden) clearInterval(refreshTimer);
             else { refresh(); refreshTimer = setInterval(refresh, 3000); }
         });
+
+        /* ══ WEBSOCKET — REAL-TIME MESH EVENTS ════════════════════
+         *  Connects to /ws (SockJS) and subscribes to /topic/mesh-events.
+         *  Each event from the server instantly updates the activity log
+         *  without waiting for the 3-second polling cycle.
+         *  Falls back to HTTP long-poll automatically if WebSocket is blocked.
+         * ═══════════════════════════════════════════════════════════ */
+        (function initWebSocket() {
+            try {
+                const stompClient = new StompJs.Client({
+                    webSocketFactory: () => new SockJS('/ws'),
+                    reconnectDelay: 5000,
+                    onConnect: () => {
+                        const badge = document.getElementById('health-badge');
+                        if (badge) {
+                            badge.innerHTML = '<span class="status-dot"></span> Live ⚡';
+                            badge.className = 'status-pill online';
+                        }
+                        log('⚡ <strong>WebSocket connected</strong> — receiving real-time events');
+
+                        stompClient.subscribe('/topic/mesh-events', (message) => {
+                            try {
+                                const evt = JSON.parse(message.body);
+                                handleMeshEvent(evt);
+                                // Trigger a data refresh so UI stays in sync
+                                refresh();
+                            } catch (e) {
+                                // Ignore malformed events
+                            }
+                        });
+                    },
+                    onDisconnect: () => {
+                        log('🔌 WebSocket disconnected — falling back to polling');
+                    },
+                    onStompError: (frame) => {
+                        log('⚠️ STOMP error: ' + (frame.headers?.message || 'unknown'));
+                    }
+                });
+                stompClient.activate();
+            } catch (e) {
+                log('⚠️ WebSocket unavailable — using polling only');
+            }
+        })();
+
+        function handleMeshEvent(evt) {
+            const icon = evt.icon || '📡';
+            const ts   = new Date(evt.timestamp).toLocaleTimeString();
+            switch (evt.type) {
+                case 'PACKET_SETTLED':
+                    log(`${icon} <strong>SETTLED</strong> ₹${evt.amount} — ${evt.senderVpa} → ${evt.receiverVpa} via <strong>${evt.bridgeNodeId}</strong> (${evt.hopCount} hops, tx#${evt.txId})`);
+                    showToast(`✅ ₹${evt.amount} settled!`);
+                    break;
+                case 'PACKET_DUPLICATE':
+                    log(`${icon} Duplicate dropped — packet <code>${evt.packetHash}</code> from ${evt.bridgeNodeId}`);
+                    break;
+                case 'PACKET_INVALID':
+                    log(`${icon} Invalid packet — reason: <strong>${evt.reason}</strong> from ${evt.bridgeNodeId}`);
+                    break;
+                case 'GOSSIP_ROUND':
+                    if (evt.transfers > 0)
+                        log(`${icon} Gossip: <strong>${evt.transfers}</strong> hop(s) — ${JSON.stringify(evt.deviceCounts)}`);
+                    break;
+                case 'BRIDGE_UPLOAD':
+                    log(`${icon} Bridge <strong>${evt.bridgeNodeId}</strong> uploaded → ${evt.outcome}`);
+                    break;
+                case 'MESH_RESET':
+                    log(`${icon} Mesh reset — all devices cleared`);
+                    showToast('🗑 Mesh reset!');
+                    break;
+            }
+        }
 
         refresh();
     </script>
