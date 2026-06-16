@@ -450,3 +450,198 @@ p, .small { font-size: 13px; color: var(--text-mid); line-height: 1.65; }
     color: var(--text-lo);
     font-size: 16px;
 }
+
+/* ══════════════════════════════════════════
+   FORM CONTROLS
+══════════════════════════════════════════ */
+input, select {
+    background: var(--bg-0);
+    border: 1px solid var(--border-default);
+    color: var(--text-hi);
+    padding: 8px 12px;
+    border-radius: var(--r-sm);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%2352525b' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    padding-right: 28px;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.1);
+}
+
+input::placeholder { color: var(--text-lo); }
+
+/* Input with prefix label (e.g. ₹, PIN) */
+.input-prefix {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-0);
+    border: 1px solid var(--border-default);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input-prefix:focus-within {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.1);
+}
+
+.input-prefix span {
+    padding: 8px 10px;
+    color: var(--text-lo);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    border-right: 1px solid var(--border-default);
+    background: var(--bg-2);
+    white-space: nowrap;
+    user-select: none;
+}
+
+.input-prefix input {
+    border: none;
+    background: transparent;
+    padding: 8px 10px;
+    box-shadow: none !important;
+    border-radius: 0;
+}
+
+/* ══════════════════════════════════════════
+   BUTTONS
+══════════════════════════════════════════ */
+button {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: var(--r-sm);
+    border: 1px solid rgba(34,197,94,0.35);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    background: var(--green);
+    color: #0c0c0d;
+    box-shadow: var(--shadow-sm);
+    line-height: 1;
+}
+
+button:hover:not(:disabled) {
+    background: var(--green-dim);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md), var(--shadow-green);
+}
+
+button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+button.secondary {
+    background: var(--bg-2);
+    border-color: var(--border-default);
+    color: var(--text-mid);
+    box-shadow: var(--shadow-sm);
+}
+
+button.secondary:hover:not(:disabled) {
+    background: var(--bg-3);
+    border-color: var(--border-strong);
+    color: var(--text-hi);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+}
+
+button.danger {
+    background: var(--danger);
+    border-color: rgba(239,68,68,0.4);
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+}
+
+button.danger:hover:not(:disabled) {
+    background: #dc2626;
+    box-shadow: var(--shadow-md), 0 0 20px rgba(239,68,68,0.2);
+}
+
+button.btn-stress {
+    background: var(--bg-2);
+    border: 1px solid var(--border-default);
+    color: var(--text-hi);
+    padding: 10px 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+button.btn-stress:hover:not(:disabled) {
+    background: var(--bg-3);
+    border-color: var(--green-border);
+    color: var(--green);
+    box-shadow: var(--shadow-md), var(--shadow-green);
+    transform: translateY(-1px);
+}
+
+/* ══════════════════════════════════════════
+   BADGES
+══════════════════════════════════════════ */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 100px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.badge-online {
+    background: var(--success-bg);
+    color: var(--success-light);
+    border: 1px solid var(--success-border);
+}
+
+.badge-offline {
+    background: rgba(82,82,91,0.15);
+    color: var(--text-lo);
+    border: 1px solid rgba(82,82,91,0.25);
+}
+
+.packet-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    background: var(--bg-0);
+    padding: 3px 7px;
+    border-radius: 4px;
+    margin: 2px 2px 2px 0;
+    display: inline-block;
+    border: 1px solid var(--border-default);
+    color: var(--text-lo);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.packet-id:hover {
+    border-color: var(--green-border);
+    color: var(--green);
+    background: var(--green-muted);
+}
