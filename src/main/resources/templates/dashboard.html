@@ -5,34 +5,61 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="TrustMesh — UPI Offline Mesh Demo. Send payments with zero internet via encrypted gossip protocol.">
-    <meta name="theme-color" content="#020617">
+    <meta name="theme-color" content="#0c0c0d">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>">
     <title>TrustMesh — UPI Offline Mesh Demo</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 
 <body>
-    <nav class="navbar">
+
+    <!-- ══ NAVBAR ═══════════════════════════════════════════════ -->
+    <nav class="navbar" role="navigation" aria-label="Main navigation">
         <div class="nav-container">
-            <span class="nav-brand">🌐 TrustMesh</span>
+            <span class="nav-brand">
+                <span class="nav-brand-icon">📡</span>
+                TrustMesh
+            </span>
             <div class="nav-links">
-                <a href="#demo-flow">Demo</a>
-                <a href="#accounts">Accounts</a>
-                <a href="#ledger">Ledger</a>
-                <button id="toggle-refresh-btn" onclick="toggleRefresh()" style="margin:0;padding:6px 14px;font-size:12px;box-shadow:none;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);">⏸ Pause</button>
+                <a href="#demo-flow"  id="nav-demo">Demo</a>
+                <a href="#accounts"   id="nav-accounts">Accounts</a>
+                <a href="#ledger"     id="nav-ledger">Ledger</a>
+                <a href="#activity"   id="nav-activity">Activity</a>
+                <button id="toggle-refresh-btn" onclick="toggleRefresh()">⏸ Pause</button>
             </div>
         </div>
     </nav>
-    <div class="container" style="border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; margin-top: 20px;">
-        <h1>📡 UPI Offline Mesh — Live Demo <span id="health-badge" class="badge badge-offline">Backend:
-                Checking...</span></h1>
-        <p class="small">
-            Send money in a basement with zero internet. Encrypted packets gossip from phone to phone
-            until one with 4G reaches the backend.
-        </p>
+
+    <!-- ══ MAIN CONTENT ══════════════════════════════════════════ -->
+    <div class="container">
+
+        <!-- Hero -->
+        <div class="page-hero">
+            <div class="badge-row">
+                <span id="health-badge" class="status-pill offline">
+                    <span class="status-dot"></span>
+                    Checking…
+                </span>
+                <span class="status-pill" style="background:rgba(34,197,94,0.07);color:var(--success-light);border-color:var(--green-border)">
+                    AES-256 Encrypted
+                </span>
+                <span class="status-pill" style="background:rgba(245,158,11,0.08);color:var(--amber-light);border-color:rgba(245,158,11,0.22)">
+                    Gossip Protocol
+                </span>
+            </div>
+
+            <h1 class="hero-title">
+                UPI Offline Mesh
+                <span style="font-weight:300;color:var(--text-lo);font-size:0.65em">— Live Demo</span>
+            </h1>
+            <p class="hero-subtitle">
+                Send money in a basement with <strong style="color:var(--text-hi)">zero internet</strong>.
+                Encrypted packets gossip from phone to phone until one with 4G reaches the backend.
+            </p>
+        </div>
 
         <!-- Live Stats Bar -->
-        <div class="stats-bar" id="stats-bar">
+        <div class="stats-bar section" id="stats-bar" aria-label="Live statistics">
             <div class="stat-item">
                 <span class="stat-value" id="stat-accounts">—</span>
                 <span class="stat-label">Accounts</span>
@@ -43,7 +70,7 @@
             </div>
             <div class="stat-item">
                 <span class="stat-value" id="stat-packets">—</span>
-                <span class="stat-label">Packets in Mesh</span>
+                <span class="stat-label">Mesh Packets</span>
             </div>
             <div class="stat-item">
                 <span class="stat-value" id="stat-devices">—</span>
@@ -51,403 +78,14 @@
             </div>
         </div>
 
-        <div id="demo-flow" class="controls" style="border: 1px solid #475569; border-radius: 8px; padding: 16px;">
-            <h3 style="margin-top:0">🎬 Demo Flow</h3>
-
-            <div>
-                <span class="step-num">1</span><strong>Compose payment</strong> (simulates sender phone)
-                <br>
-                <select id="senderVpa"></select>
-                →
-                <select id="receiverVpa"></select>
-                ₹<input type="number" id="amount" value="500" style="width: 100px">
-                PIN <input type="text" id="pin" value="1234" style="width: 80px" maxlength="4">
-                <button onclick="sendPacket()">📤 Inject into Mesh</button>
-            </div>
-
-            <div style="margin-top: 16px">
-                <span class="step-num">2</span><strong>Gossip</strong> — packets hop device-to-device
-                <button class="secondary" onclick="gossip()">🔄 Run Gossip Round</button>
-            </div>
-
-            <div style="margin-top: 16px">
-                <span class="step-num">3</span><strong>Bridge node walks outside, hits 4G</strong>
-                <button class="secondary" onclick="flushBridges()">📡 Bridges Upload to Backend</button>
-                <span class="small">(parallel — exercises idempotency)</span>
-            </div>
-
-            <div style="margin-top: 16px">
-                <button class="danger" onclick="resetMesh()">🗑 Reset Mesh + Cache</button>
-            </div>
-        </div>
-
-        <div id="accounts" class="grid grid-2">
-            <div class="card">
-                <h2>📱 Mesh Devices</h2>
-                <div id="devices"></div>
-            </div>
-
-            <div class="card">
-                <h2>🏦 Account Balances</h2>
-                <table id="accounts-table">
-                    <thead>
-                        <tr>
-                            <th>VPA</th>
-                            <th>Holder</th>
-                            <th>Balance</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-                <p class="small" id="cacheInfo"></p>
-                <hr style="border-color: var(--border-color); margin: 12px 0">
-                <h3 style="margin-top:0; font-size:14px">➕ Add New Account</h3>
-                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
-                    <input type="text" id="newVpa" placeholder="VPA (e.g. raj@demo)" style="width:160px">
-                    <input type="text" id="newName" placeholder="Holder Name" style="width:140px">
-                    <input type="number" id="newBalance" placeholder="Initial Balance ₹" value="1000"
-                        style="width:130px" onfocus="this.select()">
-                    <button onclick="addAccount()" style="margin:0">➕ Add</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="ledger" class="card" style="margin-top: 16px">
-            <h2>📜 Transaction Ledger</h2>
-            <table id="tx-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>From</th>
-                        <th>To</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Bridge</th>
-                        <th>Hops</th>
-                        <th>Settled</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-
-        <div class="card" style="margin-top: 16px">
-            <h2>🔌 Under The Hood — Proof This Isn't Just Add/Subtract</h2>
-            <div class="grid grid-2" style="gap:16px">
-                <div>
-                    <h3 style="font-size:14px; margin-bottom:8px">🔐 Last Encrypted Ciphertext (What Bridge Node Sees)
-                    </h3>
-                    <div id="ciphertext-display"
-                        style="font-family:'JetBrains Mono',monospace;font-size:11px;background:#020617;padding:12px;border-radius:8px;border:1px solid #1e3a5f;word-break:break-all;color:#60a5fa;min-height:60px">
-                        <span style="color:#475569">Inject a packet to see the encrypted ciphertext...</span>
-                    </div>
-                    <p class="small" style="margin-top:6px">💡 The bridge node sees ONLY this opaque blob — it cannot
-                        read sender, receiver, or amount.</p>
-                </div>
-                <div>
-                    <h3 style="font-size:14px; margin-bottom:8px">⚡ Idempotency Stress Test</h3>
-                    <p class="small">Fires the same encrypted packet from <strong>3 bridge nodes simultaneously</strong>
-                        using Java threads. Only 1 should settle. Others get blocked.</p>
-                    <p class="small" style="color:#f59e0b">⚠️ This test uses a fixed ₹1 packet — the goal is to prove
-                        idempotency, not to test the amount.</p>
-                    <button onclick="runStressTest()"
-                        style="background: linear-gradient(135deg,#7c3aed,#3b82f6);box-shadow:0 0 20px rgba(124,58,237,0.4)">🧪
-                        Run Stress Test</button>
-                    <div id="stress-result" style="margin-top:12px"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card" style="margin-top: 16px">
-            <h2>🪧 Activity Log</h2>
-            <div id="log" style="border: 1px solid #1e293b; border-radius: 6px; padding: 12px; background-color: #0f172a;"></div>
-        </div>
+        <!-- PLACEHOLDER: rest of content will be added in next commit -->
     </div>
 
-    <script>
-        function log(msg) {
-            const el = document.getElementById('log');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.innerHTML = '<span class="log-time">[' + new Date().toLocaleTimeString() + ']</span> ' + msg;
-            el.insertBefore(entry, el.firstChild);
-            if (el.children.length > 100) el.removeChild(el.lastChild);
-        }
-
-        function logError(context, err) {
-            log(`❌ ${context} failed: ${err.message || err}`);
-        }
-
-        async function refresh() {
-            try {
-                // Mesh state
-                const m = await fetch('/api/mesh/state').then(r => r.json());
-                const devicesDiv = document.getElementById('devices');
-                devicesDiv.innerHTML = m.devices.map(d => `
-            <div class="device ${d.hasInternet ? 'bridge' : 'offline'}">
-                <strong>${d.deviceId}</strong>
-                <span class="badge ${d.hasInternet ? 'badge-online' : 'badge-offline'}">
-                    ${d.hasInternet ? '🌐 4G' : '🚫 OFFLINE'}
-                </span>
-                <span class="small">holding ${d.packetCount} packet(s)</span>
-                <div>${d.packetIds.map(id => `<span class="packet-id" onclick="copyPacketId('${id}')" title="Click to copy">${id}</span>`).join('')}</div>
-            </div>
-        `).join('');
-                document.getElementById('cacheInfo').textContent =
-                    `Idempotency cache size: ${m.idempotencyCacheSize}`;
-
-                // Update stats bar
-                const totalPackets = m.devices.reduce((sum, d) => sum + d.packetCount, 0);
-                document.getElementById('stat-devices').textContent = m.devices.length;
-                document.getElementById('stat-packets').textContent = totalPackets;
-
-
-                // Accounts
-                const accsRaw = await fetch('/api/accounts').then(r => r.json());
-                const accs = Array.isArray(accsRaw) ? accsRaw : [];
-                document.querySelector('#accounts-table tbody').innerHTML = accs.map(a => `
-            <tr><td>${a.vpa}</td><td>${a.holderName}</td>
-                <td class="balance">₹${parseFloat(a.balance).toFixed(2)}</td></tr>
-        `).join('');
-                document.getElementById('stat-accounts').textContent = accs.length;
-
-                // Dynamically populate dropdowns
-                const senderSelect = document.getElementById('senderVpa');
-                const receiverSelect = document.getElementById('receiverVpa');
-                if (senderSelect.options.length !== accs.length && accs.length > 0) {
-                    const currentSender = senderSelect.value;
-                    const currentReceiver = receiverSelect.value;
-
-                    senderSelect.innerHTML = '';
-                    receiverSelect.innerHTML = '';
-
-                    accs.forEach(a => {
-                        senderSelect.add(new Option(a.vpa, a.vpa));
-                        receiverSelect.add(new Option(a.vpa, a.vpa));
-                    });
-
-                    // Restore selection or set defaults
-                    if (currentSender && [...senderSelect.options].some(o => o.value === currentSender)) {
-                        senderSelect.value = currentSender;
-                    }
-                    if (currentReceiver && [...receiverSelect.options].some(o => o.value === currentReceiver)) {
-                        receiverSelect.value = currentReceiver;
-                    } else if (accs.length > 1) {
-                        receiverSelect.selectedIndex = 1; // Default to different receiver
-                    }
-                }
-
-                // Transactions
-                const txs = await fetch('/api/transactions').then(r => r.json());
-                document.querySelector('#tx-table tbody').innerHTML = txs.map(t => `
-            <tr class="${t.status === 'SETTLED' ? 'highlight-settled' : ''}">
-                <td>${t.id}</td><td>${t.senderVpa}</td><td>${t.receiverVpa}</td>
-                <td class="balance">₹${parseFloat(t.amount).toFixed(2)}</td>
-                <td class="status-${t.status}">${t.status}</td>
-                <td>${t.bridgeNodeId}</td><td>${t.hopCount}</td>
-                <td class="small">${new Date(t.settledAt).toLocaleTimeString()}</td>
-            </tr>
-        `).join('');
-                document.getElementById('stat-settled').textContent =
-                    txs.filter(t => t.status === 'SETTLED').length;
-
-                // Health Check
-                fetch('/api/health').then(r => r.json()).then(h => {
-                    const b = document.getElementById('health-badge');
-                    b.className = 'badge badge-online';
-                    b.textContent = 'Backend: UP';
-                }).catch(() => {
-                    const b = document.getElementById('health-badge');
-                    b.className = 'badge badge-offline';
-                    b.textContent = 'Backend: DOWN';
-                });
-
-                // Update footer timestamp
-                const ts = document.getElementById('last-refreshed');
-                if (ts) ts.textContent = 'Last refresh: ' + new Date().toLocaleTimeString();
-            } catch (err) {
-                logError('Auto-refresh', err);
-            }
-        }
-
-        async function sendPacket() {
-            try {
-                const senderVpa = document.getElementById('senderVpa').value;
-                // Map VPA to device name (e.g. alice@demo → phone-alice)
-                const deviceName = 'phone-' + senderVpa.split('@')[0];
-                const body = {
-                    senderVpa: senderVpa,
-                    receiverVpa: document.getElementById('receiverVpa').value,
-                    amount: parseFloat(document.getElementById('amount').value),
-                    pin: document.getElementById('pin').value,
-                    ttl: 5,
-                    startDevice: deviceName
-                };
-                const r = await fetch('/api/demo/send', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                }).then(r => r.json());
-                log(`📤 Packet ${r.packetId.substring(0, 8)} encrypted & injected at ${r.injectedAt} (TTL ${r.ttl})`);
-                log(`🔐 Ciphertext (what bridge sees): ${r.ciphertextPreview}`);
-                // Show ciphertext in proof panel
-                document.getElementById('ciphertext-display').textContent = r.ciphertextPreview;
-                refresh();
-            } catch (err) {
-                logError('Send packet', err);
-            }
-        }
-
-        async function gossip() {
-            try {
-                const r = await fetch('/api/mesh/gossip', { method: 'POST' }).then(r => r.json());
-                log(`🔄 Gossip: ${r.transfers} transfer(s) — ${JSON.stringify(r.deviceCounts)}`);
-                refresh();
-            } catch (err) {
-                logError('Gossip', err);
-            }
-        }
-
-        async function flushBridges() {
-            try {
-                const r = await fetch('/api/mesh/flush', { method: 'POST' }).then(r => r.json());
-                log(`📡 ${r.uploadsAttempted} bridge upload(s):`);
-                r.results.forEach(res => {
-                    log(`   ${res.bridgeNode} packet ${res.packetId} → ${res.outcome}` +
-                        (res.reason ? ` (${res.reason})` : ''));
-                });
-                refresh();
-            } catch (err) {
-                logError('Bridge flush', err);
-            }
-        }
-
-        async function resetMesh() {
-            try {
-                await fetch('/api/mesh/reset', { method: 'POST' });
-                log('🗑 mesh + idempotency cache cleared');
-                refresh();
-            } catch (err) {
-                logError('Reset', err);
-            }
-        }
-
-        // Auto-refresh: pause when tab is hidden to save resources
-        let refreshTimer = setInterval(refresh, 3000);
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                clearInterval(refreshTimer);
-            } else {
-                refresh();
-                refreshTimer = setInterval(refresh, 3000);
-            }
-        });
-
-        refresh();
-
-        let refreshPaused = false;
-        function toggleRefresh() {
-            const btn = document.getElementById('toggle-refresh-btn');
-            if (refreshPaused) {
-                refreshTimer = setInterval(refresh, 3000);
-                btn.textContent = '⏸ Pause';
-                btn.style.background = 'rgba(59,130,246,0.15)';
-                refreshPaused = false;
-                showToast('▶️ Auto-refresh resumed');
-            } else {
-                clearInterval(refreshTimer);
-                btn.textContent = '▶️ Resume';
-                btn.style.background = 'rgba(239,68,68,0.15)';
-                refreshPaused = true;
-                showToast('⏸ Auto-refresh paused');
-            }
-        }
-
-        async function addAccount() {
-            const vpa = document.getElementById('newVpa').value.trim();
-            const holderName = document.getElementById('newName').value.trim();
-            const initialBalance = parseFloat(document.getElementById('newBalance').value) || 1000;
-            if (!vpa || !holderName) { showToast('⚠️ VPA and Holder Name are required!'); return; }
-            try {
-                const r = await fetch('/api/accounts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ vpa, holderName, initialBalance })
-                });
-                const data = await r.json();
-                if (!r.ok) {
-                    showToast('❌ ' + (data.error || 'Failed to add account'));
-                } else {
-                    showToast('✅ Account created: ' + vpa);
-                    log('➕ New account added: ' + vpa + ' (' + holderName + ')');
-                    document.getElementById('newVpa').value = '';
-                    document.getElementById('newName').value = '';
-                    refresh();
-                }
-            } catch (err) { logError('Add account', err); }
-        }
-
-        async function runStressTest() {
-            const btn = document.querySelector('[onclick="runStressTest()"]');
-            btn.textContent = '⏳ Running...';
-            btn.disabled = true;
-            try {
-                const r = await fetch('/api/demo/stress-test', { method: 'POST' }).then(r => r.json());
-                const resultDiv = document.getElementById('stress-result');
-                const outcomeHtml = r.results.map(res => `
-            <div style="margin:4px 0;font-size:13px">
-                <strong>${res.bridge}</strong>:
-                <span class="${res.outcome === 'SETTLED' ? 'status-SETTLED' : 'status-REJECTED'}">${res.outcome}</span>
-                ${res.reason ? `<span class="small">(${res.reason})</span>` : ''}
-            </div>`).join('');
-                resultDiv.innerHTML = `
-            <div style="background:#0f2a1a;border:1px solid #10b981;border-radius:8px;padding:12px;font-size:13px">
-                <div style="color:#10b981;font-weight:600;margin-bottom:8px">✅ ${r.settled} SETTLED — 🚫 ${r.duplicateDropped} DUPLICATE_DROPPED</div>
-                ${outcomeHtml}
-                <p class="small" style="margin-top:8px;margin-bottom:0">${r.explanation}</p>
-            </div>`;
-                log(`🧪 Stress Test: ${r.settled} settled, ${r.duplicateDropped} dropped — idempotency VERIFIED ✅`);
-                refresh();
-            } catch (err) { logError('Stress test', err); }
-            finally { btn.textContent = '🧪 Run Stress Test'; btn.disabled = false; }
-        }
-
-        function copyPacketId(id) {
-            navigator.clipboard.writeText(id);
-            showToast(`📋 Copied packet ID: ${id}`);
-        }
-
-        function showToast(message) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.textContent = message;
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        }
-
-        // ── Keyboard Shortcuts ─────────────────────────────────────
-        document.addEventListener('keydown', (e) => {
-            // Don't fire when typing in inputs
-            if (['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
-            switch (e.key.toLowerCase()) {
-                case 'g': gossip();      showToast('⌨️ G → Run Gossip'); break;
-                case 'f': flushBridges(); showToast('⌨️ F → Flush Bridges'); break;
-                case 's': sendPacket();   showToast('⌨️ S → Send Packet'); break;
-                case 'r': if (!e.ctrlKey && !e.metaKey) { resetMesh(); showToast('⌨️ R → Reset Mesh'); } break;
-                case 'p': toggleRefresh(); break;
-                case '?':
-                    showToast('⌨️ Shortcuts: G=Gossip  F=Flush  S=Send  R=Reset  P=Pause/Resume');
-                    break;
-            }
-        });
-    </script>
-    <div id="toast-container"></div>
+    <div id="toast-container" aria-live="polite"></div>
 
     <footer class="site-footer">
         <div class="footer-inner">
-            <span>🌐 <strong>TrustMesh</strong> — UPI Offline Mesh Demo</span>
+            <span>🌐 <span class="footer-brand">TrustMesh</span> — UPI Offline Mesh Demo</span>
             <span class="footer-badges">
                 <span class="tech-badge">Spring Boot</span>
                 <span class="tech-badge">Thymeleaf</span>
@@ -457,6 +95,79 @@
             <span class="small" id="last-refreshed">Last refresh: —</span>
         </div>
     </footer>
-</body>
 
+    <script>
+        function log(msg) {
+            const el = document.getElementById('log');
+            if (!el) return;
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = '<span class="log-time">[' + new Date().toLocaleTimeString() + ']</span> ' + msg;
+            el.insertBefore(entry, el.firstChild);
+            if (el.children.length > 100) el.removeChild(el.lastChild);
+        }
+
+        function logError(context, err) {
+            log(`❌ <span style="color:var(--danger-light)">${context} failed: ${err.message || err}</span>`);
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3200);
+        }
+
+        async function refresh() {
+            try {
+                fetch('/api/health').then(r => r.json()).then(() => {
+                    const b = document.getElementById('health-badge');
+                    b.className = 'status-pill online';
+                    b.innerHTML = '<span class="status-dot"></span> Backend: UP';
+                }).catch(() => {
+                    const b = document.getElementById('health-badge');
+                    b.className = 'status-pill offline';
+                    b.innerHTML = '<span class="status-dot"></span> Backend: DOWN';
+                });
+
+                const ts = document.getElementById('last-refreshed');
+                if (ts) ts.textContent = 'Last refresh: ' + new Date().toLocaleTimeString();
+            } catch (err) {
+                logError('Auto-refresh', err);
+            }
+        }
+
+        let refreshPaused = false;
+        let refreshTimer = setInterval(refresh, 3000);
+
+        function toggleRefresh() {
+            const btn = document.getElementById('toggle-refresh-btn');
+            if (refreshPaused) {
+                refreshTimer = setInterval(refresh, 3000);
+                btn.innerHTML = '⏸ Pause';
+                btn.style.cssText = '';
+                refreshPaused = false;
+                showToast('▶️ Auto-refresh resumed');
+            } else {
+                clearInterval(refreshTimer);
+                btn.innerHTML = '▶️ Resume';
+                btn.style.background = 'rgba(239,68,68,0.1)';
+                btn.style.borderColor = 'rgba(239,68,68,0.3)';
+                btn.style.color = 'var(--danger-light)';
+                refreshPaused = true;
+                showToast('⏸ Auto-refresh paused');
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) { clearInterval(refreshTimer); }
+            else { refresh(); refreshTimer = setInterval(refresh, 3000); }
+        });
+
+        refresh();
+    </script>
+
+</body>
 </html>
