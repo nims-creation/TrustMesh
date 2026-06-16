@@ -42,6 +42,7 @@ public class ApiController {
     private final AccountRepository accountRepo;
     private final TransactionRepository txRepo;
     private final IdempotencyService idempotency;
+    private final JwtService jwtService;
 
     public ApiController(ServerKeyHolder serverKey,
                          DemoService demo,
@@ -49,14 +50,16 @@ public class ApiController {
                          BridgeIngestionService bridge,
                          AccountRepository accountRepo,
                          TransactionRepository txRepo,
-                         IdempotencyService idempotency) {
-        this.serverKey = serverKey;
-        this.demo = demo;
-        this.mesh = mesh;
-        this.bridge = bridge;
+                         IdempotencyService idempotency,
+                         JwtService jwtService) {
+        this.serverKey  = serverKey;
+        this.demo       = demo;
+        this.mesh       = mesh;
+        this.bridge     = bridge;
         this.accountRepo = accountRepo;
-        this.txRepo = txRepo;
+        this.txRepo      = txRepo;
         this.idempotency = idempotency;
+        this.jwtService  = jwtService;
     }
 
     // ------------------------------------------------------------------ key
@@ -187,17 +190,52 @@ public class ApiController {
     // -------------------------------------------------------------- bridge
 
     /**
+     * Bridge node registration — issues a signed JWT.
+     *
+     * Real bridge nodes call this endpoint once on app startup.
+     * The JWT is stored on-device and sent with every /api/bridge/ingest call.
+     * Token expiry (24h) matches UPI's offline transaction window.
+     */
+    @PostMapping("/bridge/register")
+    @Operation(
+        summary     = "Register Bridge Node",
+        description = "Issues a signed JWT for a bridge node device. Include this token as 'Authorization: Bearer <token>' on all /api/bridge/ingest calls."
+    )
+    public ResponseEntity<?> registerBridgeNode(@RequestBody Map<String, String> body) {
+        String deviceId = body.get("deviceId");
+        if (deviceId == null || deviceId.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                Map.of("error", "deviceId is required"));
+        }
+        String token = jwtService.issueToken(deviceId.trim());
+        return ResponseEntity.ok(Map.of(
+            "deviceId",   deviceId,
+            "token",      token,
+            "type",       "Bearer",
+            "expiresIn",  "24h",
+            "usage",      "Authorization: Bearer " + token.substring(0, 20) + "..."
+        ));
+    }
+
+    /**
      * THE PRODUCTION ENDPOINT.
-     * In a real deployment, the Android app's bridge logic POSTs here whenever
-     * the device has internet and is holding mesh packets.
+     * Requires Authorization: Bearer <JWT> from /api/bridge/register.
+     * JwtAuthFilter validates the token before this method is called.
+     * The authenticated deviceId is forwarded via request attribute.
      */
     @PostMapping("/bridge/ingest")
-    @Operation(summary = "Ingest Mesh Packet", description = "THE PRODUCTION ENDPOINT. Bridge nodes POST here whenever they reach internet connectivity and are holding mesh packets.")
+    @Operation(
+        summary     = "Ingest Mesh Packet",
+        description = "THE PRODUCTION ENDPOINT. Requires JWT auth (register at POST /api/bridge/register). Bridge nodes POST here when they reach internet connectivity."
+    )
     public ResponseEntity<?> ingest(
             @RequestBody @Valid MeshPacket packet,
-            @RequestHeader(value = "X-Bridge-Node-Id", defaultValue = "unknown") String bridgeNodeId,
+            @RequestAttribute(value = "authenticatedBridgeNodeId", required = false) String jwtDeviceId,
+            @RequestHeader(value = "X-Bridge-Node-Id", defaultValue = "unknown") String headerDeviceId,
             @RequestHeader(value = "X-Hop-Count", defaultValue = "0") int hopCount) {
 
+        // JWT deviceId takes precedence over header (JWT is authenticated, header is not)
+        String bridgeNodeId = jwtDeviceId != null ? jwtDeviceId : headerDeviceId;
         BridgeIngestionService.IngestResult r = bridge.ingest(packet, bridgeNodeId, hopCount);
         return ResponseEntity.ok(r);
     }

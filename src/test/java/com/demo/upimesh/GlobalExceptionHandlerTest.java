@@ -1,9 +1,10 @@
 package com.demo.upimesh;
 
-import com.demo.upimesh.controller.ApiController;
 import com.demo.upimesh.model.MeshPacket;
 import com.demo.upimesh.service.BridgeIngestionService;
 import com.demo.upimesh.service.InsufficientFundsException;
+import com.demo.upimesh.service.JwtService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -22,6 +23,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Tests for GlobalExceptionHandler.
+ *
+ * /api/bridge/ingest is now protected by JwtAuthFilter — so all test
+ * requests include a valid "Authorization: Bearer <token>" header.
+ * The token is issued by the real JwtService (no mocking) so that
+ * the filter passes through and the exception handler is exercised.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 public class GlobalExceptionHandlerTest {
@@ -29,12 +38,23 @@ public class GlobalExceptionHandlerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private JwtService jwtService;
+
     @MockBean
     private BridgeIngestionService bridgeIngestionService;
 
+    private String bearerToken;
+
+    @BeforeEach
+    void setUp() {
+        // Issue a real JWT so JwtAuthFilter lets the request through
+        bearerToken = "Bearer " + jwtService.issueToken("test-bridge-node");
+    }
+
     @Test
     void testMethodArgumentNotValidReturns400WithFieldErrors() throws Exception {
-        // Missing ciphertext
+        // Missing ciphertext → MethodArgumentNotValidException → 400
         String badMeshPacket = """
                 {
                   "packetId": "some-uuid",
@@ -45,6 +65,7 @@ public class GlobalExceptionHandlerTest {
 
         mockMvc.perform(post("/api/bridge/ingest")
                 .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", bearerToken)
                 .content(badMeshPacket))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
@@ -65,10 +86,12 @@ public class GlobalExceptionHandlerTest {
 
         // Mock the service to throw InsufficientFundsException
         when(bridgeIngestionService.ingest(any(MeshPacket.class), anyString(), anyInt()))
-                .thenThrow(new InsufficientFundsException("alice@demo", new BigDecimal("100"), new BigDecimal("5000")));
+                .thenThrow(new InsufficientFundsException(
+                        "alice@demo", new BigDecimal("100"), new BigDecimal("5000")));
 
         mockMvc.perform(post("/api/bridge/ingest")
                 .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", bearerToken)
                 .content(validMeshPacket))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.status").value(422))
