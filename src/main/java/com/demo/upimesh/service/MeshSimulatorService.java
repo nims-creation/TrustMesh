@@ -23,8 +23,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MeshSimulatorService {
 
     private final Map<String, VirtualDevice> devices = new ConcurrentHashMap<>();
+    private final MeshMetricsService metrics;
 
-    public MeshSimulatorService() {
+    public MeshSimulatorService(MeshMetricsService metrics) {
+        this.metrics = metrics;
         // Default scenario: 4 offline phones in a basement, 1 phone outside with 4G
         seedDefaultDevices();
     }
@@ -117,6 +119,7 @@ public class MeshSimulatorService {
         }
 
         log.info("Gossip round complete: {} packet transfers", transfers);
+        metrics.recordGossipRound();
         return new GossipResult(transfers, snapshotMap());
     }
 
@@ -138,6 +141,7 @@ public class MeshSimulatorService {
             if (!d.hasInternet()) continue;
             for (MeshPacket pkt : d.getHeldPackets()) {
                 out.add(new BridgeUpload(d.getDeviceId(), pkt));
+                metrics.recordBridgeUpload();
             }
         }
         return out;

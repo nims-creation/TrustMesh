@@ -4,8 +4,6 @@ import com.demo.upimesh.crypto.HybridCryptoService;
 import com.demo.upimesh.model.MeshPacket;
 import com.demo.upimesh.model.PaymentInstruction;
 import com.demo.upimesh.model.Transaction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -28,6 +26,9 @@ import java.time.Instant;
  *   - Dependencies are final (immutable after construction)
  *   - Unit tests can inject mocks without a Spring context
  *   - Spring itself recommends constructor injection
+ *
+ * MeshMetricsService wired to record business outcomes as Prometheus counters
+ * and settlement end-to-end latency as a histogram.
  */
 @Service
 @Slf4j
@@ -36,59 +37,70 @@ public class BridgeIngestionService {
     private final HybridCryptoService crypto;
     private final IdempotencyService idempotency;
     private final SettlementService settlement;
+    private final MeshMetricsService metrics;
 
     @Value("${upi.mesh.packet-max-age-seconds:86400}")
     private long maxAgeSeconds;
 
     public BridgeIngestionService(HybridCryptoService crypto,
                                   IdempotencyService idempotency,
-                                  SettlementService settlement) {
-        this.crypto = crypto;
+                                  SettlementService settlement,
+                                  MeshMetricsService metrics) {
+        this.crypto     = crypto;
         this.idempotency = idempotency;
-        this.settlement = settlement;
+        this.settlement  = settlement;
+        this.metrics     = metrics;
     }
 
     public IngestResult ingest(MeshPacket packet, String bridgeNodeId, int hopCount) {
+        long startNanos = System.nanoTime();
         try {
             String packetHash = crypto.hashCiphertext(packet.getCiphertext());
 
-            // ---- Idempotency gate ----
+            // ── Idempotency gate ────────────────────────────────
             if (!idempotency.claim(packetHash)) {
-                log.info("DUPLICATE packet {} from bridge {} — dropped",
-                        packetHash.substring(0, 12) + "...", bridgeNodeId);
+                log.info("DUPLICATE packet {}… from bridge {} — dropped",
+                        packetHash.substring(0, 12), bridgeNodeId);
+                metrics.recordDuplicateDropped();
                 return IngestResult.duplicate(packetHash);
             }
 
-            // ---- Decrypt ----
+            // ── Decrypt ─────────────────────────────────────────
             PaymentInstruction instruction;
             try {
                 instruction = crypto.decrypt(packet.getCiphertext());
             } catch (Exception e) {
-                log.warn("Decryption failed for packet {}: {}",
-                        packetHash.substring(0, 12) + "...", e.getMessage());
+                log.warn("Decryption failed for packet {}…: {}",
+                        packetHash.substring(0, 12), e.getMessage());
+                metrics.recordInvalid();
                 return IngestResult.invalid(packetHash, "decryption_failed");
             }
 
-            // ---- Freshness check (replay protection) ----
+            // ── Freshness check (replay protection) ─────────────
             long ageSeconds = (Instant.now().toEpochMilli() - instruction.getSignedAt()) / 1000;
             if (ageSeconds > maxAgeSeconds) {
-                log.warn("Packet {} too old ({}s), rejected",
-                        packetHash.substring(0, 12) + "...", ageSeconds);
+                log.warn("Packet {}… too old ({}s), rejected", packetHash.substring(0, 12), ageSeconds);
+                metrics.recordInvalid();
                 return IngestResult.invalid(packetHash, "stale_packet");
             }
-            if (ageSeconds < -300) { // small clock-skew tolerance
+            if (ageSeconds < -300) {
+                metrics.recordInvalid();
                 return IngestResult.invalid(packetHash, "future_dated");
             }
 
-            // ---- Settle ----
+            // ── Settle ──────────────────────────────────────────
             Transaction tx = settlement.settle(instruction, packetHash, bridgeNodeId, hopCount);
+            metrics.recordSettled();
+            metrics.recordSettlementLatency(System.nanoTime() - startNanos);
             return IngestResult.settled(packetHash, tx);
 
         } catch (InsufficientFundsException e) {
             log.warn("Insufficient funds for {}: {}", e.getSenderVpa(), e.getMessage());
+            metrics.recordRejected();
             return IngestResult.invalid(e.getMessage(), "insufficient_funds");
         } catch (Exception e) {
             log.error("Ingestion error: {}", e.getMessage(), e);
+            metrics.recordInvalid();
             return IngestResult.invalid("?", "internal_error: " + e.getMessage());
         }
     }
