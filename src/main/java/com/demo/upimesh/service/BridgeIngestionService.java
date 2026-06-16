@@ -89,6 +89,15 @@ public class BridgeIngestionService {
 
             // ── Settle ──────────────────────────────────────────
             Transaction tx = settlement.settle(instruction, packetHash, bridgeNodeId, hopCount);
+
+            // Circuit breaker fallback returns CIRCUIT_OPEN status instead of throwing
+            if (tx.getStatus() == Transaction.Status.CIRCUIT_OPEN) {
+                log.warn("Settlement circuit OPEN — packet {} rejected", packetHash.substring(0, 12));
+                metrics.recordRejected();
+                events.packetInvalid("circuit_breaker_open", bridgeNodeId);
+                return IngestResult.invalid(packetHash, "circuit_breaker_open");
+            }
+
             metrics.recordSettled();
             metrics.recordSettlementLatency(System.nanoTime() - startNanos);
             events.packetSettled(

@@ -136,6 +136,18 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Resilience4j — Circuit Breaker + Retry for SettlementService -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+        <!-- AOP support required by Resilience4j @CircuitBreaker annotation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- Test scope -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

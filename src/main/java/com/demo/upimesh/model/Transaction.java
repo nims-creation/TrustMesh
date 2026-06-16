@@ -54,5 +54,5 @@ public class Transaction {
     @Column(nullable = false)
     private Status status;
 
-    public enum Status { SETTLED, REJECTED }
+    public enum Status { SETTLED, REJECTED, CIRCUIT_OPEN }
 }

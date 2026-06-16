@@ -78,13 +78,14 @@ public class HealthController {
 
             // ── Business metrics (Prometheus counters snapshot) ──
             Map<String, Object> businessMetrics = new LinkedHashMap<>();
-            businessMetrics.put("packetsSettled",         metrics.getTotalSettled());
-            businessMetrics.put("packetsDuplicateDropped",metrics.getTotalDuplicateDropped());
-            businessMetrics.put("packetsInvalid",         metrics.getTotalInvalid());
-            businessMetrics.put("packetsRejected",        metrics.getTotalRejected());
-            businessMetrics.put("gossipRounds",           metrics.getTotalGossipRounds());
-            businessMetrics.put("bridgeUploads",          metrics.getTotalBridgeUploads());
-            businessMetrics.put("prometheusEndpoint",     "/actuator/prometheus");
+            businessMetrics.put("packetsSettled",          metrics.getTotalSettled());
+            businessMetrics.put("packetsDuplicateDropped", metrics.getTotalDuplicateDropped());
+            businessMetrics.put("packetsInvalid",          metrics.getTotalInvalid());
+            businessMetrics.put("packetsRejected",         metrics.getTotalRejected());
+            businessMetrics.put("circuitBreakerOpen",      metrics.getTotalCircuitBreakerOpen());
+            businessMetrics.put("gossipRounds",            metrics.getTotalGossipRounds());
+            businessMetrics.put("bridgeUploads",           metrics.getTotalBridgeUploads());
+            businessMetrics.put("prometheusEndpoint",      "/actuator/prometheus");
 
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("status",           "UP");

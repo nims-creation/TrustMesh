@@ -32,6 +32,7 @@ public class MeshMetricsService {
     private final Counter duplicateDroppedCounter;
     private final Counter invalidCounter;
     private final Counter rejectedCounter;
+    private final Counter circuitBreakerOpenCounter;
     private final Counter gossipRoundsCounter;
     private final Counter bridgeUploadsCounter;
 
@@ -53,6 +54,10 @@ public class MeshMetricsService {
 
         this.rejectedCounter = Counter.builder("trustmesh.packets.rejected")
                 .description("Packets rejected at business layer (insufficient funds, stale timestamp)")
+                .register(registry);
+
+        this.circuitBreakerOpenCounter = Counter.builder("trustmesh.packets.circuit_open")
+                .description("Packets rejected because the settlement circuit breaker was OPEN")
                 .register(registry);
 
         this.gossipRoundsCounter = Counter.builder("trustmesh.gossip.rounds")
@@ -89,6 +94,11 @@ public class MeshMetricsService {
         rejectedCounter.increment();
     }
 
+    public void recordCircuitBreakerOpen() {
+        circuitBreakerOpenCounter.increment();
+        log.warn("[metrics] circuit breaker OPEN — packet rejected");
+    }
+
     public void recordGossipRound() {
         gossipRoundsCounter.increment();
     }
@@ -113,10 +123,11 @@ public class MeshMetricsService {
 
     // ── Snapshot getters (for /api/health enrichment) ───────────
 
-    public long getTotalSettled()          { return (long) settledCounter.count(); }
-    public long getTotalDuplicateDropped() { return (long) duplicateDroppedCounter.count(); }
-    public long getTotalInvalid()          { return (long) invalidCounter.count(); }
-    public long getTotalRejected()         { return (long) rejectedCounter.count(); }
-    public long getTotalGossipRounds()     { return (long) gossipRoundsCounter.count(); }
-    public long getTotalBridgeUploads()    { return (long) bridgeUploadsCounter.count(); }
+    public long getTotalSettled()            { return (long) settledCounter.count(); }
+    public long getTotalDuplicateDropped()   { return (long) duplicateDroppedCounter.count(); }
+    public long getTotalInvalid()            { return (long) invalidCounter.count(); }
+    public long getTotalRejected()           { return (long) rejectedCounter.count(); }
+    public long getTotalCircuitBreakerOpen() { return (long) circuitBreakerOpenCounter.count(); }
+    public long getTotalGossipRounds()       { return (long) gossipRoundsCounter.count(); }
+    public long getTotalBridgeUploads()      { return (long) bridgeUploadsCounter.count(); }
 }
