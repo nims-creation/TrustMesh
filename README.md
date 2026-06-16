@@ -3,9 +3,10 @@
 <div align="center">
 
 [![Java CI with Maven](https://github.com/nims-creation/TrustMesh/actions/workflows/ci.yml/badge.svg)](https://github.com/nims-creation/TrustMesh/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/nims-creation/TrustMesh/releases)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/nims-creation/TrustMesh/releases)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.5-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
+[![Tests](https://img.shields.io/badge/Tests-31%20passing-success.svg)](./src/test)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -70,6 +71,10 @@ TrustMesh is a **production-grade backend simulation** of an offline-first payme
 | **Replay Protection** | Timestamp freshness window (±5 min) + TTL hop counter |
 | **Consistency** | Optimistic Locking (`@Version`) + Spring `@Transactional` |
 | **Schema Safety** | Flyway versioned SQL migrations |
+| **Observability** | Prometheus metrics + `/actuator/health` + circuit breaker state |
+| **Auth** | JWT (HS256) bridge node registration — 24h expiry |
+| **Resilience** | Resilience4j Circuit Breaker + Retry on settlement pipeline |
+| **Real-time** | STOMP WebSocket — live event push to dashboard |
 
 ---
 
@@ -93,6 +98,14 @@ open http://localhost:8080/
 
 # Access Swagger API Docs
 open http://localhost:8080/swagger-ui.html
+
+# Prometheus metrics
+curl http://localhost:8080/actuator/prometheus
+
+# Register a bridge node JWT
+curl -X POST http://localhost:8080/api/bridge/register \
+  -H "Content-Type: application/json" \
+  -d '{"deviceId":"my-bridge-01"}'
 ```
 
 ### Production Mode (PostgreSQL via Docker)
@@ -105,6 +118,12 @@ docker-compose ps
 
 # Tail application logs
 docker-compose logs -f app
+```
+
+### Load Testing (requires k6)
+```bash
+# Run idempotency stress test (100 VUs, proves zero double-debits)
+k6 run load-tests/stress_test.js
 ```
 
 ### Demo Walkthrough (3 Steps)
@@ -120,7 +139,7 @@ Step 2 → Gossip Round:
 Step 3 → Bridge Upload & Settlement:
   Click "📡 Bridges Upload to Backend"
   → Bridge nodes upload to backend; idempotency layer fires;
-     ledger shows SETTLED with updated balances
+     ledger shows SETTLED with updated balances; WebSocket pushes event live
 ```
 
 ---
@@ -142,30 +161,38 @@ Step 3 → Bridge Upload & Settlement:
 │   └──────────┘          └──────────┘          └────────┬─────────┘  │
 │                                                         │           │
 └─────────────────────────────────────────────────────────┼───────────┘
-                                                          │ HTTPS/TLS
-                                          ┌───────────────▼──────────────┐
-                                          │      ONLINE ZONE (Backend)   │
-                                          │                              │
-                                          │  ┌──────────────────────┐    │
-                                          │  │   Spring Boot API    │    │
-                                          │  │  (Gateway + Logic)   │    │
-                                          │  └──────────┬───────────┘    │
-                                          │             │                │
-                                          │  ┌──────────▼───────────┐    │
-                                          │  │  Idempotency Cache   │    │
-                                          │  │  (ConcurrentHashMap) │    │
-                                          │  └──────────┬───────────┘    │
-                                          │             │                │
-                                          │  ┌──────────▼───────────┐    │
-                                          │  │   Settlement Engine  │    │
-                                          │  │ (JPA + Opt. Locking) │    │
-                                          │  └──────────┬───────────┘    │
-                                          │             │                │
-                                          │  ┌──────────▼───────────┐    │
-                                          │  │     PostgreSQL DB    │    │
-                                          │  │  (accounts + txns)   │    │
-                                          │  └──────────────────────┘    │
-                                          └──────────────────────────────┘
+                                                          │ HTTPS/TLS + JWT
+                                          ┌───────────────▼──────────────────┐
+                                          │      ONLINE ZONE (Backend)       │
+                                          │                                  │
+                                          │  ┌─────────────────────────┐     │
+                                          │  │   JwtAuthFilter          │     │
+                                          │  │  (Bearer token check)   │     │
+                                          │  └──────────┬──────────────┘     │
+                                          │             │                    │
+                                          │  ┌──────────▼──────────────┐     │
+                                          │  │   BridgeIngestionService │     │
+                                          │  │  Idempotency → Decrypt  │     │
+                                          │  │  Freshness → Settle     │     │
+                                          │  └──────────┬──────────────┘     │
+                                          │             │                    │
+                                          │  ┌──────────▼──────────────┐     │
+                                          │  │  SettlementService       │     │
+                                          │  │  @Retry + @CircuitBreaker│     │
+                                          │  │  @Transactional + @Version│    │
+                                          │  └──────────┬──────────────┘     │
+                                          │             │                    │
+                                          │  ┌──────────▼──────────────┐     │
+                                          │  │  PostgreSQL / H2 DB     │     │
+                                          │  │  (accounts + txns)      │     │
+                                          │  └─────────────────────────┘     │
+                                          │                                  │
+                                          │  ┌─────────────────────────┐     │
+                                          │  │  MeshEventPublisher      │     │
+                                          │  │  → /topic/mesh-events   │     │
+                                          │  │  (STOMP WebSocket)      │     │
+                                          │  └─────────────────────────┘     │
+                                          └──────────────────────────────────┘
 ```
 
 ---
@@ -175,11 +202,12 @@ Step 3 → Bridge Upload & Settlement:
 ```mermaid
 graph TB
     subgraph CLIENT["📱 Client Layer (Simulated)"]
-        UI[Dashboard UI<br/>Thymeleaf + Vanilla JS]
+        UI[Dashboard UI<br/>Thymeleaf + Vanilla JS<br/>WebSocket Live Events]
         SWAGGER[Swagger UI<br/>OpenAPI 3.0]
     end
 
     subgraph API["🔌 API Gateway Layer"]
+        JWT[JwtAuthFilter<br/>Bearer token validation]
         AC[ApiController<br/>REST Endpoints]
         SF[SecurityHeadersFilter<br/>CSP / HSTS Headers]
     end
@@ -190,7 +218,10 @@ graph TB
         BIS[BridgeIngestionService<br/>Settlement Pipeline]
         IS[IdempotencyService<br/>Dedup Cache]
         HCS[HybridCryptoService<br/>RSA + AES Engine]
-        SKH[ServerKeyHolder<br/>RSA Keypair]
+        SS[SettlementService<br/>@Retry @CircuitBreaker]
+        JWTS[JwtService<br/>HS256 Token Issuer]
+        MEP[MeshEventPublisher<br/>WebSocket Events]
+        MMS[MeshMetricsService<br/>Prometheus Counters]
     end
 
     subgraph DATA["🗄️ Data Layer"]
@@ -202,15 +233,19 @@ graph TB
     UI --> AC
     SWAGGER --> AC
     SF --> AC
+    JWT --> AC
     AC --> DS
     AC --> MSS
     AC --> BIS
+    AC --> JWTS
     DS --> HCS
-    HCS --> SKH
     BIS --> IS
-    BIS --> AR
-    BIS --> TR
-    MSS --> DS
+    BIS --> SS
+    BIS --> MEP
+    BIS --> MMS
+    SS --> AR
+    SS --> TR
+    MSS --> MEP
     AR --> DB
     TR --> DB
 ```
@@ -227,20 +262,24 @@ flowchart LR
 
     C([📦 MeshPacket\npacketId, ttl, createdAt,\nciphertext]) -->|BLE Gossip| D
 
-    D{{📱📱📱 Untrusted Relay Nodes\nCan see: packetId, ttl\nCannot see: amount, VPAs}} -->|TTL--| E
+    D{{"📱📱📱 Untrusted Relay Nodes\nCan see: packetId, ttl\nCannot see: amount, VPAs"}} -->|TTL--| E
 
-    E([📡 Bridge Node\nFirst phone with 4G]) -->|"POST /api/bridge/ingest"| F
+    E([📡 Bridge Node\nFirst phone with 4G]) -->|"POST /api/bridge/ingest\nAuthorization: Bearer JWT"| F
 
     F{{"🔒 Idempotency Gate\nSHA-256 hash\nputIfAbsent atomic CAS"}} -->|Duplicate?| G
     F -->|First Arrival| H
 
-    G([🚫 409 DUPLICATE_DROPPED\nNo DB write\nNo debit]) --> Z
+    G([🚫 DUPLICATE_DROPPED\nNo DB write\nNo debit]) --> Z
 
     H[["🔓 RSA Decrypt AES Key\nAES-GCM Decrypt payload\nVerify timestamp freshness"]] --> I
 
-    I[["✅ ACID Settlement\n@Transactional\n@Version optimistic lock\nDebit sender, Credit receiver"]] --> J
+    I[["🛡️ @Retry + @CircuitBreaker\nTransient DB failures retried\nCircuit opens on 50% failure rate"]] --> J
 
-    J([📒 PostgreSQL Ledger\nSETTLED transaction\nBalances updated]) --> Z
+    J[["✅ ACID Settlement\n@Transactional\n@Version optimistic lock\nDebit sender, Credit receiver"]] --> K
+
+    K([📒 PostgreSQL Ledger\nSETTLED transaction\nBalances updated]) --> L
+
+    L([⚡ WebSocket Push\n/topic/mesh-events\nDashboard updates live]) --> Z
 
     Z([🎉 Done])
 ```
@@ -254,10 +293,12 @@ sequenceDiagram
     participant S as Sender Phone
     participant M as Mesh Nodes
     participant B as Bridge Node (4G)
-    participant GW as API Gateway
+    participant JWT as JwtAuthFilter
+    participant GW as BridgeIngestionService
     participant IC as Idempotency Cache
-    participant CRYPTO as Crypto Engine
+    participant CB as CircuitBreaker
     participant DB as PostgreSQL
+    participant WS as WebSocket
 
     Note over S: Offline — no internet
 
@@ -268,41 +309,48 @@ sequenceDiagram
 
     loop BLE Gossip (TTL hops)
         S->>M: broadcast(MeshPacket)
-        M->>M: Check: seen before? (local dedup by packetId)
         M->>M: ttl-- → forward to neighbors
     end
 
     Note over B: Bridge node comes online
 
-    B->>GW: POST /api/bridge/ingest (MeshPacket)
-    GW->>GW: Compute SHA-256(ciphertext) → hash
+    B->>JWT: POST /api/bridge/ingest + Bearer token
+    JWT->>JWT: Validate HS256 signature + expiry
+    JWT-->>B: 401 if invalid | pass-through if valid
 
+    JWT->>GW: Request + authenticatedBridgeNodeId attribute
+    GW->>GW: SHA-256(ciphertext) → hash
     GW->>IC: putIfAbsent(hash, bridgeNodeId)
 
     alt Duplicate packet
-        IC-->>GW: Already claimed (returns existing entry)
-        GW-->>B: 200 {outcome: DUPLICATE_DROPPED}
+        IC-->>GW: Already claimed
+        GW->>WS: publish PACKET_DUPLICATE event
+        GW-->>B: {outcome: DUPLICATE_DROPPED}
     else First arrival
         IC-->>GW: null (claim granted)
+        GW->>GW: RSA-OAEP decrypt → AES key
+        GW->>GW: AES-GCM decrypt → payload
+        GW->>GW: Verify freshness (±5 min window)
 
-        GW->>CRYPTO: RSA-OAEP decrypt → AES key
-        GW->>CRYPTO: AES-GCM decrypt → {senderVpa, receiverVpa, amount, pin, ts}
-        CRYPTO-->>GW: Plaintext payload
+        GW->>CB: settle() [@Retry wraps @CircuitBreaker]
 
-        GW->>GW: Verify: now - createdAt < 5 min?
-        GW->>GW: Verify: ttl > 0?
-
-        GW->>DB: BEGIN TRANSACTION
-        DB->>DB: SELECT account WHERE vpa=senderVpa FOR UPDATE (optimistic lock)
-        DB->>DB: Check balance >= amount
-        DB->>DB: UPDATE sender balance -= amount (@Version check)
-        DB->>DB: UPDATE receiver balance += amount
-        DB->>DB: INSERT transaction (SETTLED)
-        DB->>DB: COMMIT
-
-        DB-->>GW: Transaction committed
-        GW-->>B: 200 {outcome: SETTLED, txId: ...}
+        alt Circuit OPEN
+            CB-->>GW: settleFallback() → CIRCUIT_OPEN sentinel
+            GW->>WS: publish PACKET_INVALID(circuit_open)
+            GW-->>B: {outcome: INVALID, reason: circuit_breaker_open}
+        else Circuit CLOSED/HALF-OPEN
+            CB->>DB: @Transactional BEGIN
+            DB->>DB: UPDATE sender balance (@Version CAS)
+            DB->>DB: UPDATE receiver balance
+            DB->>DB: INSERT transaction (SETTLED)
+            DB->>DB: COMMIT
+            DB-->>GW: Transaction committed
+            GW->>WS: publish PACKET_SETTLED event
+            GW-->>B: {outcome: SETTLED, txId: ...}
+        end
     end
+
+    WS-->>S: Real-time event → dashboard updates live
 ```
 
 ---
@@ -325,7 +373,7 @@ erDiagram
         varchar sender_vpa FK "References ACCOUNTS.vpa"
         varchar receiver_vpa FK "References ACCOUNTS.vpa"
         numeric_19_2 amount "Transaction amount"
-        varchar status "SETTLED | REJECTED | DUPLICATE_DROPPED"
+        varchar status "SETTLED | REJECTED | CIRCUIT_OPEN"
         varchar bridge_node_id "Which bridge node uploaded this packet"
         integer hop_count "Number of BLE hops before bridge upload"
         timestamp settled_at "Time of final settlement"
@@ -337,58 +385,60 @@ erDiagram
 
 **Key Design Decisions:**
 - `vpa` as `PRIMARY KEY` (varchar) — no surrogate key needed; VPA is globally unique
-- `Numeric(19, 2)` for `balance` and `amount` — avoids floating-point precision errors in financial records
-- `packet_hash` with `UNIQUE INDEX` — enforces idempotency at DB level as a safety net behind the in-memory cache
-- `@Version` (bigint) on Account — enables optimistic locking without pessimistic `SELECT FOR UPDATE` locks
+- `Numeric(19, 2)` for `balance` and `amount` — avoids floating-point precision errors
+- `packet_hash` with `UNIQUE INDEX` — DB-level idempotency as safety net behind in-memory cache
+- `@Version` (bigint) on Account — optimistic locking without pessimistic `SELECT FOR UPDATE`
+- `CIRCUIT_OPEN` status — sentinel for graceful circuit breaker fallback
 
 ---
 
 ### Concurrency & Idempotency Model
 
-The idempotency system operates in two layers — an **in-memory fast gate** and a **database safety net**:
-
 ```
-Incoming Bridge Request
+Incoming Bridge Request (JWT validated)
         │
         ▼
 ┌─────────────────────────────────────────────────┐
 │  Layer 1: In-Memory ConcurrentHashMap           │
-│  ─────────────────────────────────────────────  │
 │  key   = SHA-256(ciphertext)                    │
 │  value = bridgeNodeId                           │
-│                                                 │
 │  Operation: putIfAbsent(key, value)             │
 │  ➜ Atomic CAS: No locks, O(1), JVM thread-safe │
-│                                                 │
 │  If returns null → FIRST ARRIVAL → proceed      │
 │  If returns value → DUPLICATE → drop (fast)     │
 └─────────────────────────────────────────────────┘
         │ (First Arrival only)
         ▼
 ┌─────────────────────────────────────────────────┐
-│  Layer 2: Database UNIQUE constraint            │
-│  ─────────────────────────────────────────────  │
-│  idx_packet_hash UNIQUE INDEX on packet_hash    │
-│                                                 │
-│  Catches edge cases where two JVM instances     │
-│  (horizontal scaling) both pass Layer 1.        │
-│  DB throws ConstraintViolationException →       │
-│  treated as DUPLICATE_DROPPED.                  │
+│  Layer 2: Resilience4j Circuit Breaker          │
+│  Opens after 50% failure rate (10-call window)  │
+│  Fallback: CIRCUIT_OPEN sentinel (no throw)     │
+│  Prevents DB failure storm cascade              │
 └─────────────────────────────────────────────────┘
         │
         ▼
 ┌─────────────────────────────────────────────────┐
-│  Layer 3: Optimistic Locking (@Version)         │
-│  ─────────────────────────────────────────────  │
+│  Layer 3: Resilience4j Retry                    │
+│  Max 3 attempts, 200ms delay                    │
+│  Retries JpaSystemException + OptimisticLock    │
+│  Does NOT retry InsufficientFundsException      │
+└─────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────┐
+│  Layer 4: Database UNIQUE constraint            │
+│  idx_packet_hash on packet_hash                 │
+│  Catches race between two JVM instances         │
+└─────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────┐
+│  Layer 5: Optimistic Locking (@Version)         │
 │  Account entity carries @Version counter.       │
-│  If two threads attempt balance update on same  │
-│  account, second one gets OptimisticLockExc →   │
-│  Spring retries or rolls back safely.           │
+│  Second concurrent update → OptimisticLockExc   │
+│  Spring rolls back safely — no corrupt balance  │
 └─────────────────────────────────────────────────┘
 ```
-
-**Why not Pessimistic Locking?**
-Pessimistic locks (`SELECT FOR UPDATE`) serialize all threads and cause lock contention at scale. Optimistic locking allows parallel reads with a cheap version-check on write — far superior throughput for payment workloads where conflicts are rare.
 
 ---
 
@@ -398,37 +448,15 @@ Pessimistic locks (`SELECT FOR UPDATE`) serialize all threads and cause lock con
 
 | Threat | Attack Vector | Mitigation |
 |---|---|---|
-| **Man in the Middle** | Malicious relay reads packet | AES-GCM encryption — ciphertext is opaque to relays |
-| **Payload Tampering** | Relay modifies ciphertext | AES-GCM Auth Tag — any tamper causes `AEADBadTagException` on decrypt |
-| **Replay Attack** | Old packet re-submitted | Timestamp check (±5 min window) + packet_hash dedup |
+| **Man in the Middle** | Malicious relay reads packet | AES-GCM encryption — opaque to relays |
+| **Payload Tampering** | Relay modifies ciphertext | AES-GCM Auth Tag — any tamper → `AEADBadTagException` |
+| **Replay Attack** | Old packet re-submitted | Timestamp check (±5 min) + packet_hash dedup |
 | **Double Spend** | Two bridges submit same packet | Atomic `putIfAbsent` + DB UNIQUE constraint |
 | **Packet Flooding** | Infinite gossip loop | TTL counter — packet dropped when ttl ≤ 0 |
-| **Outer Field Spoofing** | Relay changes `packetId` | Idempotency key is `SHA-256(ciphertext)` — NOT `packetId` |
+| **Outer Field Spoofing** | Relay changes `packetId` | Idempotency key is `SHA-256(ciphertext)` not `packetId` |
+| **Unauthorized Bridge** | Rogue device calls /bridge/ingest | JWT auth — 401 without valid registered token |
+| **DB Failure Storm** | DB errors cascade to ingestion | Resilience4j circuit breaker — opens at 50% failure rate |
 | **XSS / Injection** | Dashboard frontend | Content-Security-Policy + X-Frame-Options headers |
-
-### Hybrid Cryptography — Why RSA + AES?
-
-```
-Problem: RSA-2048 can only encrypt ~245 bytes.
-         A payment payload is typically 300–500 bytes.
-         Pure RSA is also slow for large data.
-
-Solution: Hybrid Encryption (used by TLS, PGP, Signal)
-
-  ┌─────────────────────────────────────────────────────┐
-  │ Step 1: Generate random 256-bit AES session key     │
-  │ Step 2: Encrypt payload with AES-256-GCM            │
-  │         → Fast symmetric encryption + Auth Tag      │
-  │ Step 3: Encrypt AES key with Server RSA-2048        │
-  │         → Only server can recover the AES key       │
-  │ Step 4: Transmit: [RSA(AES_key) || AES(payload)]    │
-  └─────────────────────────────────────────────────────┘
-
-Guarantees:
-  ✅ Confidentiality — Relay phones cannot read payload
-  ✅ Integrity — GCM tag detects any bit flip in transit
-  ✅ Forward Secrecy (per-packet) — unique AES key each time
-```
 
 ---
 
@@ -436,18 +464,21 @@ Guarantees:
 
 | Feature | Description |
 |---|---|
-| 🔐 **Hybrid Cryptography** | RSA-2048/OAEP + AES-256-GCM per-packet encryption. Intermediate nodes route ciphertext blindly — zero PII exposure. |
-| ⚡ **Concurrent Idempotency** | SHA-256 hash + `ConcurrentHashMap.putIfAbsent` eliminates double-spend even under parallel bridge floods. Proven by included stress test. |
-| 🔒 **Optimistic Locking** | `@Version` annotation on Account entity — no pessimistic locks, high concurrency, guaranteed balance consistency. |
+| 🔐 **Hybrid Cryptography** | RSA-2048/OAEP + AES-256-GCM per-packet encryption. Relay nodes route ciphertext blindly — zero PII exposure. |
+| ⚡ **Concurrent Idempotency** | SHA-256 hash + `ConcurrentHashMap.putIfAbsent` eliminates double-spend under parallel bridge floods. Proven by k6 stress test (100 VUs, 0 violations). |
+| 🔒 **Optimistic Locking** | `@Version` annotation — no pessimistic locks, high concurrency, guaranteed balance consistency. |
 | 📡 **Gossip Protocol Simulator** | Multi-hop BLE mesh with TTL decrement. Demonstrates realistic packet propagation across untrusted relay devices. |
-| ⏱️ **Replay Attack Protection** | Timestamp freshness check (configurable window) + finite TTL counter prevents stale or recycled packets. |
-| 📊 **Live Observability Dashboard** | Real-time topology view, account balances, transaction ledger, and activity log. Dynamic dropdowns fetched from live API. |
-| 🧪 **Idempotency Stress Test** | Built-in UI button fires 3 concurrent bridge uploads via Java threads. Proves exactly 1 settles and 2 drop — no extra debit. |
-| 🔌 **Encrypted Ciphertext Viewer** | Dashboard shows the actual Base64 ciphertext after injection — visually proving the relay sees only an opaque blob. |
+| ⏱️ **Replay Attack Protection** | Timestamp freshness check + finite TTL counter prevents stale or recycled packets. |
+| 📊 **Live Observability Dashboard** | Real-time topology view, account balances, transaction ledger, and WebSocket activity log. |
+| 🔑 **JWT Bridge Auth** | `POST /api/bridge/register` issues HS256 JWT (24h). `/api/bridge/ingest` requires `Authorization: Bearer` header. |
+| 🛡️ **Circuit Breaker + Retry** | Resilience4j `@CircuitBreaker` opens at 50% failure. `@Retry` handles transient DB errors (3 attempts, 200ms). |
+| ⚡ **WebSocket Real-Time Events** | STOMP over SockJS — 7 event types pushed to `/topic/mesh-events`. Dashboard goes from polling to live push. |
+| 📈 **Prometheus Metrics** | 7 custom Micrometer counters + P50/P95/P99 settlement latency histogram. Grafana-ready. |
+| 📝 **5 Architecture Decision Records** | ADR-001 to ADR-005 explain every major design choice with rejected alternatives. |
+| 🧪 **k6 Load Tests** | Idempotency stress (100 VUs, 1 packet → exactly 1 SETTLED) + throughput ramp (P99 < 500ms). |
 | 🗄️ **Flyway Schema Migrations** | `V1__init.sql` versioned migrations — schema evolution is safe, repeatable, and CI-validated. |
 | 🐳 **Full Docker Orchestration** | `docker-compose.yml` with health checks, profile-driven config, and dependency ordering. |
 | 📝 **OpenAPI / Swagger UI** | Self-documenting REST API at `/swagger-ui.html`. |
-| 🔄 **GitHub Actions CI** | Automated `mvn test` on every push. Build badge linked in README. |
 
 ---
 
@@ -457,88 +488,103 @@ Guarantees:
 |---|---|---|
 | **Language** | Java 17 | LTS, Records, Pattern Matching |
 | **Framework** | Spring Boot 3.3.5 | Auto-configuration, JPA, WebMVC |
-| **Security** | Custom `SecurityHeadersFilter` | CSP, HSTS, X-Frame-Options |
-| **Cryptography** | Java JCE (RSA-OAEP, AES-GCM) | Standard library, no external crypto deps |
+| **Security** | JwtAuthFilter + SecurityHeadersFilter | JWT bridge auth + CSP/HSTS/X-Frame-Options |
+| **Cryptography** | Java JCE (RSA-OAEP, AES-GCM) | Standard library — no external crypto deps |
 | **Database (Dev)** | H2 In-Memory | Zero-setup local development |
 | **Database (Prod)** | PostgreSQL 16 | ACID, production-grade, NUMERIC precision |
-| **Migrations** | Flyway Core | Version-controlled schema, idempotent runs |
+| **Migrations** | Flyway Core | Version-controlled schema |
 | **ORM** | Spring Data JPA + Hibernate | Type-safe queries, optimistic locking |
-| **Code Generation** | Lombok (`@Data`, `@Slf4j`) | Reduce boilerplate |
+| **Resilience** | Resilience4j 2.2.0 | Circuit breaker + retry (AOP proxies) |
+| **Auth** | JJWT 0.12.6 | HS256 JWT issuance and validation |
+| **Observability** | Spring Actuator + Micrometer + Prometheus | Metrics, health, Prometheus scrape |
+| **WebSocket** | spring-boot-starter-websocket (STOMP) | Real-time mesh events |
+| **Load Testing** | k6 | Idempotency stress + throughput benchmarks |
+| **Code Generation** | Lombok | Reduce boilerplate |
 | **API Docs** | Springdoc OpenAPI 3 | Auto-generated Swagger UI |
-| **Testing** | JUnit 5, Mockito, Spring Boot Test | Unit, integration, concurrency tests |
+| **Testing** | JUnit 5, Mockito, Spring Boot Test | 31 tests: unit, integration, concurrency |
 | **Containerization** | Docker, Docker Compose | Reproducible environments |
-| **CI/CD** | GitHub Actions | Automated build and test |
+| **CI/CD** | GitHub Actions | Automated build and test on every push |
 | **Build Tool** | Maven (mvnw wrapper) | Dependency management, lifecycle |
 | **Templating** | Thymeleaf + Vanilla JS | Server-side HTML, no framework overhead |
-| **Fonts / UI** | Inter, JetBrains Mono (Google Fonts) | Premium, readable dashboard |
 
 ---
 
 ## 📡 API Reference
 
-All endpoints are documented interactively at `/swagger-ui.html`.
+All endpoints documented interactively at `/swagger-ui.html`.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/server-key` | Returns server RSA-2048 public key for client-side encryption |
-| `POST` | `/api/demo/send` | Simulate sender phone: build encrypted packet & inject into mesh |
-| `POST` | `/api/demo/stress-test` | Fire same packet from 3 bridge nodes simultaneously (idempotency proof) |
-| `GET` | `/api/mesh/state` | Returns current mesh topology: devices, packet counts, hop data |
-| `POST` | `/api/mesh/gossip` | Run one gossip round: packets hop between mesh devices |
-| `POST` | `/api/mesh/flush` | Bridge nodes attempt to upload all held packets to backend |
-| `POST` | `/api/mesh/reset` | Clear mesh state and idempotency cache (demo reset) |
-| `POST` | `/api/bridge/ingest` | **Core production endpoint**: ingest encrypted packet from a real bridge node |
-| `GET` | `/api/accounts` | List all accounts and current balances |
-| `GET` | `/api/accounts/{vpa}` | Look up a single account by VPA — returns `404` if not found |
-| `POST` | `/api/accounts` | Create a new demo account |
-| `GET` | `/api/transactions` | List latest 50 settled transactions |
-| `GET` | `/api/stats` | Aggregated snapshot: account count, tx count, cache size, mesh device summary |
-| `GET` | `/api/health` | Health check — includes JVM uptime, Java version, free/max memory, DB counts |
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/server-key` | None | RSA-2048 public key for client encryption |
+| `POST` | `/api/bridge/register` | None | Register bridge node → returns JWT |
+| `POST` | `/api/demo/send` | None | Simulate sender: build encrypted packet & inject |
+| `POST` | `/api/demo/stress-test` | None | Fire same packet from 3 bridges simultaneously |
+| `GET` | `/api/mesh/state` | None | Mesh topology: devices, packet counts |
+| `POST` | `/api/mesh/gossip` | None | Run one gossip round |
+| `POST` | `/api/mesh/flush` | None | Bridge nodes upload all held packets |
+| `POST` | `/api/mesh/reset` | None | Clear mesh + idempotency cache |
+| `POST` | `/api/bridge/ingest` | **JWT** | Production endpoint: ingest from real bridge node |
+| `GET` | `/api/accounts` | None | All accounts + balances |
+| `GET` | `/api/accounts/{vpa}` | None | Single account by VPA (404 if not found) |
+| `POST` | `/api/accounts` | None | Create demo account |
+| `GET` | `/api/transactions` | None | Latest 50 settled transactions |
+| `GET` | `/api/stats` | None | Account count, tx count, cache size, mesh summary |
+| `GET` | `/api/health` | None | Health + JVM metrics + business metrics snapshot |
+| `GET` | `/actuator/prometheus` | None | Prometheus scrape endpoint |
+| `GET` | `/actuator/circuitbreakers` | None | Circuit breaker state |
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-# Run all tests
+# Run all 31 tests
 ./mvnw test
 
 # Run specific test class
+./mvnw test -Dtest=JwtAuthTest
 ./mvnw test -Dtest=IdempotencyConcurrencyTest
 
 # Generate test report
 ./mvnw surefire-report:report
+
+# Run k6 load test
+k6 run load-tests/stress_test.js
 ```
 
-### Test Coverage
+### Test Coverage — 31 Tests
 
 | Test Class | Type | What It Tests |
 |---|---|---|
-| `IdempotencyConcurrencyTest` | Integration + Concurrency | 10 threads submit same packet simultaneously → exactly 1 SETTLED |
-| `LocalIdempotencyServiceTest` | Unit | `putIfAbsent` correctness, cache size limits, eviction |
-| `FreshnessCheckTest` | Unit | Timestamp validation — expired packets rejected, fresh packets pass |
-| `SecurityHeadersFilterTest` | Integration | CSP, HSTS, X-Frame-Options headers present on all responses |
-| `HybridCryptoServiceTest` | Unit | RSA encrypt/decrypt roundtrip, AES-GCM tamper detection |
+| `JwtAuthTest` (4) | Unit + Integration | Token round-trip, invalid inputs, register endpoint, 401 on missing auth |
+| `IdempotencyConcurrencyTest` (3) | Concurrency | 10 threads same packet → exactly 1 SETTLED |
+| `LocalIdempotencyServiceTest` (2) | Unit | `putIfAbsent` correctness, cache size |
+| `FreshnessCheckTest` (3) | Unit | Expired packets rejected, fresh packets pass |
+| `SettlementServiceTest` (2) | Unit | Correct debit/credit, InsufficientFunds thrown |
+| `InsufficientFundsTest` (2) | Integration | 422 response, balance unchanged |
+| `MeshAndCryptoTest` (3) | Integration | Reset clears state, hash deterministic, unknown VPA |
+| `GlobalExceptionHandlerTest` (2) | Integration | 400 validation + 422 business error with JWT |
+| `SecurityHeadersFilterTest` (2) | Integration | CSP, HSTS, X-Frame-Options on all responses |
+| `ApiControllerIntegrationTest` (3) | Integration | Full pipeline: inject → gossip → flush → settle |
+| `AccountEntityTest` (5) | Unit | Account entity, balance arithmetic, VPA validation |
 
 ---
 
 ## 🐳 Deployment
 
 ### Docker Compose (Production)
-
-```yaml
-# docker-compose.yml provisions:
-# - PostgreSQL 16 with health check
-# - Spring Boot app (prod profile) depending on healthy DB
-# - Flyway runs V1__init.sql automatically on startup
-```
-
 ```bash
 # Production deployment
 docker-compose up --build -d
 
 # Check health
 curl http://localhost:8080/api/health
+
+# Check circuit breaker state
+curl http://localhost:8080/actuator/circuitbreakers
+
+# Prometheus metrics
+curl http://localhost:8080/actuator/prometheus
 ```
 
 ### Environment Variables
@@ -550,49 +596,28 @@ curl http://localhost:8080/api/health
 | `DB_PORT` | `5432` | PostgreSQL port |
 | `DB_NAME` | `trustmesh` | Database name |
 | `DB_USER` | `trustmesh` | Database user |
-| `DB_PASSWORD` | `trustmesh` | Database password (use secrets in production) |
+| `DB_PASSWORD` | `trustmesh` | Change in production! |
+| `JWT_SECRET` | see properties | HS256 signing key — rotate in production |
 
-### ☁️ Live Deployment — Render.com (Active)
+### ☁️ Live Deployment — Render.com
 
 **🌐 Live URL: [https://trustmesh.onrender.com/](https://trustmesh.onrender.com/)**
 
-Deployed on Render free tier using the included `render.yaml`. No environment variables needed — runs with H2 in-memory database for zero-config cloud demo.
-
-```yaml
-# render.yaml (included in repo)
-services:
-  - type: web
-    name: trustmesh
-    buildCommand: ./mvnw clean package -DskipTests
-    startCommand: java -jar target/*.jar
-    plan: free
-```
-
-### Cloud Deployment (Railway / Render with PostgreSQL)
-
-```bash
-# For production with PostgreSQL, set these env vars:
-SPRING_PROFILES_ACTIVE=prod
-DB_HOST=<neon-or-supabase-host>
-DB_USER=<user>
-DB_PASSWORD=<password>
-DB_NAME=trustmesh
-```
+Deployed on Render free tier using the included `render.yaml`. Runs with H2 in-memory for zero-config demo.
 
 ---
 
 ## 📈 Scalability Roadmap
 
-The current architecture is designed to scale horizontally with minimal changes:
-
-| Current (v1.0) | Next Step (v1.5) | Cloud Native (v2.0) |
+| Current (v2.0) | Next Step | Cloud Native |
 |---|---|---|
-| `ConcurrentHashMap` (JVM-local) | **Redis** `SET NX` (distributed idempotency) | Redis Cluster / AWS ElastiCache |
-| H2 / Single PostgreSQL | **Read replicas** + connection pooling (HikariCP) | AWS RDS Aurora / PlanetScale |
-| Single Spring Boot instance | **Horizontal scaling** (stateless design ready) | Kubernetes + Load Balancer |
-| GitHub Actions CI | **CD pipeline** (Railway/Render auto-deploy) | ArgoCD / Helm |
-| JVM in-memory metrics | **Prometheus + Grafana** | Datadog / New Relic APM |
-| Manual API keys | **Spring Security + JWT** | OAuth 2.0 / API Gateway |
+| `ConcurrentHashMap` (JVM-local) | **Redis** `SET NX EX` (distributed idempotency) | Redis Cluster / ElastiCache |
+| H2 / Single PostgreSQL | Read replicas + HikariCP | AWS RDS Aurora |
+| HS256 JWT | **RS256** with AWS KMS (external verifiers) | OAuth 2.0 / APIG |
+| In-process Circuit Breaker | Distributed circuit state (Redis) | Istio service mesh |
+| Single Spring Boot instance | Horizontal scaling (stateless ready) | Kubernetes + HPA |
+| Prometheus local | **Grafana Cloud** dashboard | Datadog / New Relic APM |
+| ConcurrentHashMap idempotency | Redis `SETNX` — [ADR-005](docs/adr/ADR-005-redis-production-idempotency.md) | Distributed atomic |
 
 ---
 
@@ -600,24 +625,25 @@ The current architecture is designed to scale horizontally with minimal changes:
 
 | Document | Description |
 |---|---|
-| [CHANGELOG.md](./CHANGELOG.md) | Version history and release notes |
+| [CHANGELOG.md](./CHANGELOG.md) | Full version history — v1.0 and v2.0 feature breakdown |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Guidelines for contributors |
-| [INTERVIEW_NOTES.md](./INTERVIEW_NOTES.md) | Technical Q&A for system design interviews |
-| [SECURITY.md](./SECURITY.md) | Security policy and responsible disclosure |
-| [Swagger UI (Live)](https://trustmesh.onrender.com/swagger-ui.html) | Interactive API documentation (live) |
-| [Swagger UI (Local)](http://localhost:8080/swagger-ui.html) | Interactive API documentation (local) |
+| [INTERVIEW_NOTES.md](./INTERVIEW_NOTES.md) | Technical Q&A — 25+ interview questions with answers |
+| [SECURITY.md](./SECURITY.md) | Security policy, threat model, responsible disclosure |
+| [docs/adr/](./docs/adr/) | 5 Architecture Decision Records |
+| [load-tests/](./load-tests/) | k6 stress test scripts + benchmark results |
+| [Swagger UI (Live)](https://trustmesh.onrender.com/swagger-ui.html) | Interactive API docs |
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on branching, commit conventions, and code style.
+Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+MIT License. See [LICENSE](./LICENSE) for details.
 
 ---
 

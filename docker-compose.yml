@@ -1,6 +1,28 @@
 version: '3.8'
 
+# TrustMesh — Docker Compose (Production Mode)
+#
+# Services:
+#   trustmesh-app  — Spring Boot 3 with PostgreSQL profile
+#   postgres       — PostgreSQL 16 with health check
+#
+# Features wired in production:
+#   - JWT auth for /api/bridge/ingest (JWT_SECRET env var)
+#   - Resilience4j circuit breaker + retry on SettlementService
+#   - Prometheus metrics at /actuator/prometheus
+#   - WebSocket STOMP at /ws (SockJS fallback)
+#   - Flyway runs V1__init.sql on startup
+#   - H2 console disabled (application-prod.properties)
+#
+# Usage:
+#   docker-compose up --build -d
+#   docker-compose ps
+#   docker-compose logs -f trustmesh-app
+#   curl http://localhost:8080/api/health
+#   curl http://localhost:8080/actuator/prometheus
+
 services:
+
   trustmesh-app:
     build:
       context: .
@@ -11,19 +33,29 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - UPI_MESH_MAX_HOPS=10
+      # JWT secret — CHANGE THIS in production! Use Docker secrets or AWS Secrets Manager
+      - JWT_SECRET=TrustMesh-BridgeNode-SecretKey-2024-ChangeInProd!
+      - JWT_EXPIRATION_MS=86400000
+      # PostgreSQL connection
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=trustmesh
+      - DB_USER=admin
+      - DB_PASSWORD=securepassword
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
+    container_name: trustmesh-postgres
     environment:
       POSTGRES_DB: trustmesh
       POSTGRES_USER: admin
@@ -32,6 +64,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d trustmesh"]
       interval: 5s
@@ -40,3 +73,4 @@ services:
 
 volumes:
   postgres_data:
+    driver: local

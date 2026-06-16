@@ -22,22 +22,37 @@ An ADR documents a significant architectural decision: the context that led to i
 
 ## Key Architectural Themes
 
-### 1. Defence in Depth
-Every security property is enforced at **multiple independent layers**:
+### 1. Defence in Depth — 8 Layers (v2.0)
+Every security and consistency property is enforced at multiple independent layers:
 ```
-Idempotency: ConcurrentHashMap (L1) → DB UNIQUE INDEX (L2)
-Integrity:   AES-GCM auth tag (L1) → TTL check (L2) → nonce (L3)
-Consistency: Idempotency gate (L1) → @Transactional (L2) → @Version (L3)
+Auth:        JwtAuthFilter (L1)
+Idempotency: ConcurrentHashMap putIfAbsent (L2) → DB UNIQUE INDEX (L7)
+Integrity:   AES-GCM auth tag (L3) → Freshness check (L4)
+Resilience:  Circuit Breaker (L5) → Retry (L6)
+Consistency: @Transactional (L7) → @Version optimistic lock (L8)
 ```
 
 ### 2. Dependency Inversion Principle
 All infrastructure concerns hide behind interfaces:
 - `IdempotencyService` → `LocalIdempotencyService` (dev) / `RedisIdempotencyService` (prod)
-- New implementations require zero changes to business logic
+- New implementations require zero changes to business logic (`BridgeIngestionService`)
 
 ### 3. Profile-Driven Configuration
 - `@Profile("!prod")` — fake seed data, ConcurrentHashMap, H2 console
 - `@Profile("prod")` — Redis, PostgreSQL, hardened properties
 
 ### 4. Standard Java — No External Crypto Libraries
-All cryptography uses `javax.crypto` (Java JCE) — no Bouncy Castle dependency. This reduces attack surface and dependency footprint.
+All cryptography uses `javax.crypto` (Java JCE) — no Bouncy Castle dependency. Reduces attack surface and dependency footprint.
+
+### 5. Resilience Ordering: Retry → CircuitBreaker → @Transactional (v2.0)
+The correct Resilience4j annotation stacking order:
+```
+@Retry wraps @CircuitBreaker wraps @Transactional
+```
+Each retry attempt is a fresh circuit breaker call. The breaker counts the **final** failure (after all retries), not each individual retry attempt.
+
+### 6. Sentinel Fallback Pattern (v2.0)
+Circuit breaker fallback returns a sentinel value (`CIRCUIT_OPEN` Transaction status) instead of throwing. The caller (`BridgeIngestionService`) handles it gracefully — pipeline continues without propagating exceptions to the HTTP layer.
+
+### 7. Non-Fatal Side Effects (v2.0)
+WebSocket events (`MeshEventPublisher`) and Prometheus counters (`MeshMetricsService`) are deliberately non-fatal. A WebSocket connection failure or metrics recording error **never** breaks the payment pipeline. `try-catch` with `log.warn` — observability infrastructure cannot affect financial correctness.
