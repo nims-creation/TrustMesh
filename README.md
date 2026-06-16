@@ -201,33 +201,33 @@ Step 3 → Bridge Upload & Settlement:
 
 ```mermaid
 graph TB
-    subgraph CLIENT["📱 Client Layer (Simulated)"]
-        UI[Dashboard UI<br/>Thymeleaf + Vanilla JS<br/>WebSocket Live Events]
-        SWAGGER[Swagger UI<br/>OpenAPI 3.0]
+    subgraph CLIENT["Client Layer"]
+        UI["Dashboard UI\nThymeleaf + Vanilla JS\nWebSocket Live Events"]
+        SWAGGER["Swagger UI\nOpenAPI 3.0"]
     end
 
-    subgraph API["🔌 API Gateway Layer"]
-        JWT[JwtAuthFilter<br/>Bearer token validation]
-        AC[ApiController<br/>REST Endpoints]
-        SF[SecurityHeadersFilter<br/>CSP / HSTS Headers]
+    subgraph API["API Gateway Layer"]
+        JWT["JwtAuthFilter\nBearer token validation"]
+        AC["ApiController\nREST Endpoints"]
+        SF["SecurityHeadersFilter\nCSP / HSTS Headers"]
     end
 
-    subgraph SERVICES["⚙️ Service Layer"]
-        DS[DemoService<br/>Packet Builder]
-        MSS[MeshSimulatorService<br/>Gossip Engine]
-        BIS[BridgeIngestionService<br/>Settlement Pipeline]
-        IS[IdempotencyService<br/>Dedup Cache]
-        HCS[HybridCryptoService<br/>RSA + AES Engine]
-        SS[SettlementService<br/>@Retry @CircuitBreaker]
-        JWTS[JwtService<br/>HS256 Token Issuer]
-        MEP[MeshEventPublisher<br/>WebSocket Events]
-        MMS[MeshMetricsService<br/>Prometheus Counters]
+    subgraph SERVICES["Service Layer"]
+        DS["DemoService\nPacket Builder"]
+        MSS["MeshSimulatorService\nGossip Engine"]
+        BIS["BridgeIngestionService\nSettlement Pipeline"]
+        IS["IdempotencyService\nDedup Cache"]
+        HCS["HybridCryptoService\nRSA + AES Engine"]
+        SS["SettlementService\n@Retry @CircuitBreaker"]
+        JWTS["JwtService\nHS256 Token Issuer"]
+        MEP["MeshEventPublisher\nWebSocket Events"]
+        MMS["MeshMetricsService\nPrometheus Counters"]
     end
 
-    subgraph DATA["🗄️ Data Layer"]
-        AR[AccountRepository<br/>JPA]
-        TR[TransactionRepository<br/>JPA]
-        DB[(PostgreSQL / H2<br/>Flyway Migrated)]
+    subgraph DATA["Data Layer"]
+        AR["AccountRepository\nJPA"]
+        TR["TransactionRepository\nJPA"]
+        DB[("PostgreSQL / H2\nFlyway Migrated")]
     end
 
     UI --> AC
