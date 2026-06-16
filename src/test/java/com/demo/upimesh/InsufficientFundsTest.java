@@ -4,6 +4,8 @@ import com.demo.upimesh.model.AccountRepository;
 import com.demo.upimesh.service.BridgeIngestionService;
 import com.demo.upimesh.service.DemoService;
 import com.demo.upimesh.service.IdempotencyService;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,9 @@ import static org.junit.jupiter.api.Assertions.*;
  *   1. The ingestion result is INVALID (InsufficientFundsException caught)
  *   2. Dave's balance is NOT changed
  *   3. The recipient's balance is NOT changed
+ *
+ * Note: @BeforeEach resets the circuit breaker to CLOSED to prevent state
+ * leaking from other test classes (e.g. unknown-VPA failures in MeshAndCryptoTest).
  */
 @SpringBootTest
 class InsufficientFundsTest {
@@ -31,10 +36,17 @@ class InsufficientFundsTest {
     @Autowired private BridgeIngestionService bridge;
     @Autowired private IdempotencyService idempotency;
     @Autowired private AccountRepository accounts;
+    @Autowired private CircuitBreakerRegistry circuitBreakerRegistry;
 
     @BeforeEach
-    void clearCache() {
+    void setUp() {
         idempotency.clear();
+        // Force circuit breaker back to CLOSED before each test.
+        // Without this, failures from other test classes (e.g. MeshAndCryptoTest
+        // using ghost@nowhere) can trip the circuit and cause InsufficientFundsException
+        // to be swallowed by the fallback instead of propagated as INVALID.
+        CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("settlementCB");
+        cb.transitionToClosedState();
     }
 
     @Test

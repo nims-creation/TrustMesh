@@ -48,8 +48,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Only protect the production bridge ingest endpoint
-        if (!INGEST_PATH.equals(request.getServletPath())) {
+        // Only protect the production bridge ingest endpoint.
+        // Use getRequestURI() — getServletPath() returns "" in MockMvc (Spring Boot 3)
+        // which would cause the filter to silently skip the auth check in tests.
+        String uri = request.getRequestURI();
+        if (!INGEST_PATH.equals(uri)) {
             filterChain.doFilter(request, response);
             return;
         }
