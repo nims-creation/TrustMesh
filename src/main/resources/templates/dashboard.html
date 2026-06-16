@@ -192,6 +192,51 @@
 
         <!-- Remaining sections will be added in next commit -->
 
+        <!-- ══ UNDER THE HOOD ════════════════════════════════════ -->
+        <div class="card section">
+            <h2>🔌 Under The Hood</h2>
+            <p class="small" style="margin-bottom:20px">Proof this isn't just add/subtract — real encryption and idempotency at work.</p>
+            <div class="grid grid-2" style="gap:20px">
+
+                <!-- Ciphertext panel -->
+                <div>
+                    <h3 style="margin-bottom:10px;font-size:13px">🔐 Last Encrypted Ciphertext <span class="small">(What Bridge Node Sees)</span></h3>
+                    <div id="ciphertext-display" class="ciphertext-box">
+                        <span style="color:var(--text-lo)">Inject a packet to see the encrypted ciphertext…</span>
+                    </div>
+                    <p class="small" style="margin-top:8px">💡 The bridge node sees <strong style="color:var(--text-mid)">only this opaque blob</strong> — it cannot read sender, receiver, or amount.</p>
+                </div>
+
+                <!-- Stress test -->
+                <div>
+                    <h3 style="margin-bottom:10px;font-size:13px">⚡ Idempotency Stress Test</h3>
+                    <p class="small" style="margin-bottom:8px">
+                        Fires the same encrypted packet from <strong style="color:var(--text-hi)">3 bridge nodes simultaneously</strong> using Java threads.
+                        Only 1 should settle. Others get blocked.
+                    </p>
+                    <p class="small" style="color:var(--amber);margin-bottom:14px">
+                        ⚠️ Uses a fixed ₹1 packet — goal is to prove idempotency, not test the amount.
+                    </p>
+                    <button class="btn-stress" id="btn-stress" onclick="runStressTest()">🧪 Run Stress Test</button>
+                    <div id="stress-result" style="margin-top:14px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ ACTIVITY LOG ══════════════════════════════════════ -->
+        <div id="activity" class="card section">
+            <h2>🪧 Activity Log</h2>
+            <div class="kbd-hints" aria-label="Keyboard shortcuts">
+                <span class="kbd-hint"><kbd>G</kbd> Gossip</span>
+                <span class="kbd-hint"><kbd>F</kbd> Flush</span>
+                <span class="kbd-hint"><kbd>S</kbd> Send</span>
+                <span class="kbd-hint"><kbd>R</kbd> Reset</span>
+                <span class="kbd-hint"><kbd>P</kbd> Pause</span>
+                <span class="kbd-hint"><kbd>?</kbd> Help</span>
+            </div>
+            <div id="log"></div>
+        </div>
+
     </div>
 
     <div id="toast-container" aria-live="polite"></div>
