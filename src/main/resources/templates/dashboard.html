@@ -335,51 +335,133 @@
         .hero-stat-val { font-size: 28px; font-weight: 700; color: var(--accent2); }
         .hero-stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
 
+        /* ── BANK CARD (physical card style) ────────────────────── */
         .accounts-cards-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 24px;
         }
-        .account-card {
-            background: var(--bg2);
-            border: 1px solid var(--border2);
-            border-radius: 18px;
-            padding: 22px;
-            transition: all 0.25s;
-            cursor: default;
+        .acct-wrap {
+            display: flex; flex-direction: column; gap: 0;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+            transition: transform 0.25s, box-shadow 0.25s;
+        }
+        .acct-wrap:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,0.45); }
+
+        /* The physical card face */
+        .bank-card {
             position: relative;
+            padding: 24px 24px 20px;
+            min-height: 170px;
+            display: flex; flex-direction: column; justify-content: space-between;
             overflow: hidden;
         }
-        .account-card::before {
+        .bank-card::after {
             content: '';
-            position: absolute; top: 0; left: 0; right: 0; height: 3px;
-            background: linear-gradient(90deg, var(--accent), var(--accent3));
-            border-radius: 18px 18px 0 0;
-            opacity: 0;
-            transition: opacity 0.25s;
+            position: absolute;
+            top: -40px; right: -40px;
+            width: 180px; height: 180px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.07);
+            pointer-events: none;
         }
-        .account-card:hover { border-color: rgba(20,184,166,0.3); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
-        .account-card:hover::before { opacity: 1; }
-        .account-card-top { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
-        .account-avatar {
-            width: 48px; height: 48px; border-radius: 50%;
+        .bank-card::before {
+            content: '';
+            position: absolute;
+            bottom: -60px; left: -20px;
+            width: 220px; height: 220px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.04);
+            pointer-events: none;
+        }
+        .card-top-row {
+            display: flex; align-items: center; justify-content: space-between;
+            position: relative; z-index: 1;
+        }
+        .card-brand { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.8); letter-spacing: 1px; text-transform: uppercase; }
+        .card-eye-btn {
+            background: rgba(255,255,255,0.15); border: none; border-radius: 50%;
+            width: 30px; height: 30px; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            font-size: 19px; font-weight: 700; color: white;
-            flex-shrink: 0;
+            font-size: 14px; transition: background 0.2s;
+            color: white;
         }
-        .account-name { font-size: 15px; font-weight: 600; color: var(--text); }
-        .account-vpa {
-            font-size: 11px; color: var(--text3);
-            font-family: 'JetBrains Mono', monospace;
-            margin-top: 3px;
-            background: var(--bg3); border-radius: 4px;
-            padding: 2px 6px; display: inline-block;
+        .card-eye-btn:hover { background: rgba(255,255,255,0.25); }
+        .card-chip {
+            width: 36px; height: 28px; border-radius: 5px;
+            background: linear-gradient(135deg, #d4af37, #f0d060, #b8922a);
+            display: flex; align-items: center; justify-content: center;
+            position: relative; z-index: 1;
         }
-        .account-balance-row { display: flex; align-items: baseline; gap: 6px; }
-        .account-balance-val { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -1px; }
-        .account-balance-curr { font-size: 13px; color: var(--text2); margin-bottom: 2px; }
-        .account-divider { height: 1px; background: var(--border2); margin: 14px 0; }
-        .account-meta { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 6px; }
+        .card-chip::after {
+            content: '';
+            width: 24px; height: 18px; border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.2);
+            display: block;
+        }
+        .card-balance-section { position: relative; z-index: 1; margin: 12px 0 4px; }
+        .card-bal-label { font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+        .card-bal-value { font-size: 30px; font-weight: 700; color: white; letter-spacing: -1px; }
+        .card-bal-hidden { font-size: 24px; color: rgba(255,255,255,0.7); letter-spacing: 4px; }
+        .card-bottom-row {
+            display: flex; align-items: flex-end; justify-content: space-between;
+            position: relative; z-index: 1;
+        }
+        .card-holder-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.5px; }
+        .card-vpa-num { font-size: 10px; color: rgba(255,255,255,0.6); font-family: 'JetBrains Mono', monospace; margin-top: 3px; }
+        .card-low-badge {
+            background: rgba(245,158,11,0.25); border: 1px solid rgba(245,158,11,0.5);
+            color: #fbbf24; font-size: 9px; font-weight: 700;
+            padding: 2px 7px; border-radius: 20px; text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Quick actions bar */
+        .card-actions {
+            background: var(--bg2);
+            display: flex;
+        }
+        .card-action-btn {
+            flex: 1; padding: 12px 8px;
+            border: none; background: transparent; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            font-size: 10px; font-weight: 600; color: var(--text2);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            transition: background 0.2s, color 0.2s;
+            font-family: 'Inter', sans-serif;
+            border-right: 1px solid var(--border2);
+        }
+        .card-action-btn:last-child { border-right: none; }
+        .card-action-btn:hover { background: rgba(20,184,166,0.08); color: var(--accent2); }
+        .card-action-icon { font-size: 16px; }
+
+        /* Mini transaction history */
+        .mini-tx-list {
+            background: var(--bg2);
+            border-top: 1px solid var(--border2);
+            padding: 12px 16px;
+        }
+        .mini-tx-header {
+            font-size: 10px; font-weight: 700; color: var(--text3);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        .mini-tx-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .mini-tx-item:last-child { border-bottom: none; }
+        .mini-tx-dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+        }
+        .mini-tx-desc { flex: 1; font-size: 11px; color: var(--text2); }
+        .mini-tx-amt { font-size: 12px; font-weight: 700; }
+        .mini-tx-amt.credit { color: var(--green2); }
+        .mini-tx-amt.debit  { color: #f87171; }
+        .mini-tx-empty { font-size: 11px; color: var(--text3); text-align: center; padding: 8px 0; }
 
         /* Add account form card */
         .add-acct-card {
@@ -401,6 +483,7 @@
             border-radius: 10px;
         }
         @media(max-width:700px) { .add-acct-form { grid-template-columns: 1fr; } }
+
 
         /* Cipher box */
         .cipher-box {
@@ -1263,7 +1346,7 @@ async function refresh() {
         // Accounts
         const accs = await fetch('/api/accounts').then(r=>r.json()).catch(()=>[]);
         const accArr = Array.isArray(accs) ? accs : [];
-        renderAccountCards(accArr);
+        renderAccountCards(accArr, txArr);
         document.getElementById('sm-accounts').textContent = accArr.length;
 
         const sS = document.getElementById('senderVpa'), rS = document.getElementById('receiverVpa');
@@ -1295,20 +1378,57 @@ async function refresh() {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   ACCOUNT CARDS RENDERER
+   ACCOUNT CARDS RENDERER (Banking style)
    ════════════════════════════════════════════════════════════════ */
-const AVATAR_COLORS = [
-    ['#0d9488','#065f46'], ['#7c3aed','#4c1d95'], ['#b45309','#78350f'],
-    ['#be123c','#7f1d1d'], ['#0369a1','#0c4a6e'], ['#15803d','#14532d'],
-    ['#c2410c','#7c2d12'], ['#6d28d9','#4c1d95']
+const CARD_GRADIENTS = [
+    'linear-gradient(135deg,#0d9488,#065f46)',
+    'linear-gradient(135deg,#7c3aed,#4c1d95)',
+    'linear-gradient(135deg,#c2410c,#7c2d12)',
+    'linear-gradient(135deg,#0369a1,#0c4a6e)',
+    'linear-gradient(135deg,#be123c,#7f1d1d)',
+    'linear-gradient(135deg,#15803d,#14532d)',
+    'linear-gradient(135deg,#b45309,#78350f)',
+    'linear-gradient(135deg,#6d28d9,#3b0764)',
 ];
+const balanceHidden = {}; // vpa -> bool
 
-function avatarColor(name, idx) {
-    const i = idx % AVATAR_COLORS.length;
-    return `linear-gradient(135deg, ${AVATAR_COLORS[i][0]}, ${AVATAR_COLORS[i][1]})`;
+function toggleBalance(vpa) {
+    balanceHidden[vpa] = !balanceHidden[vpa];
+    const el = document.getElementById('bal-' + vpa.replace(/[@.]/g,'_'));
+    const btn = document.getElementById('eye-' + vpa.replace(/[@.]/g,'_'));
+    const acc = window._lastAccArr && window._lastAccArr.find(a=>a.vpa===vpa);
+    if (!el || !acc) return;
+    const bal = parseFloat(acc.balance||0);
+    if (balanceHidden[vpa]) {
+        el.innerHTML = `<span class="card-bal-hidden">●●●●●●</span>`;
+        btn.textContent = '🙈';
+    } else {
+        el.innerHTML = `<span class="card-bal-value">₹${bal.toLocaleString('en-IN',{maximumFractionDigits:2})}</span>`;
+        btn.textContent = '👁️';
+    }
 }
 
-function renderAccountCards(accArr) {
+function copyUpi(vpa) {
+    navigator.clipboard.writeText(vpa).then(()=>toast('📋 '+vpa+' copied!')).catch(()=>toast('UPI: '+vpa));
+}
+
+function sendFromAccount(vpa) {
+    // Switch to Demo tab, pre-select sender
+    const demoTab = document.getElementById('tab-demo');
+    if (demoTab) switchTab('demo', demoTab);
+    const sel = document.getElementById('senderVpa');
+    if (sel) sel.value = vpa;
+    toast('📤 Sending from '+vpa);
+}
+
+function getLastTx(vpa, txArr) {
+    return txArr
+        .filter(t => (t.senderVpa===vpa || t.receiverVpa===vpa) && t.status==='SETTLED')
+        .slice(-3).reverse();
+}
+
+function renderAccountCards(accArr, txArr=[]) {
+    window._lastAccArr = accArr; // store for toggleBalance
     const grid = document.getElementById('accounts-cards');
     if (!grid) return;
 
@@ -1323,32 +1443,75 @@ function renderAccountCards(accArr) {
         grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:64px 0;color:var(--text3)">
             <div style="font-size:40px;margin-bottom:12px">👤</div>
             <div style="font-size:14px;font-weight:600;margin-bottom:6px">No accounts yet</div>
-            <div style="font-size:12px">Add your first account below to get started</div>
+            <div style="font-size:12px">Add your first wallet below to get started</div>
         </div>`;
         return;
     }
 
     grid.innerHTML = accArr.map((a, i) => {
-        const initials = (a.holderName||a.vpa).split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
-        const bal = parseFloat(a.balance||0);
-        const balFormatted = bal.toLocaleString('en-IN', {maximumFractionDigits:2});
+        const safeId  = a.vpa.replace(/[@.]/g,'_');
+        const bal     = parseFloat(a.balance||0);
+        const balFmt  = bal.toLocaleString('en-IN', {maximumFractionDigits:2});
+        const isHidden = balanceHidden[a.vpa];
+        const gradient = CARD_GRADIENTS[i % CARD_GRADIENTS.length];
+        const isLow   = bal > 0 && bal < 500;
+        const isZero  = bal === 0;
+        const lastTxs = getLastTx(a.vpa, txArr);
+        // Masked VPA in card-number style
+        const vpaShort = a.vpa.split('@')[0].padStart(4,'*').slice(-4).toUpperCase();
+        const masked = `●●●●  ●●●●  ●●●●  ${vpaShort}`;
+
+        const txHtml = lastTxs.length ? lastTxs.map(t => {
+            const isCredit = t.receiverVpa === a.vpa;
+            return `<div class="mini-tx-item">
+                <div class="mini-tx-dot" style="background:${isCredit?'var(--green)':'#f87171'}"></div>
+                <div class="mini-tx-desc">${isCredit ? 'from '+t.senderVpa : 'to '+t.receiverVpa}</div>
+                <div class="mini-tx-amt ${isCredit?'credit':'debit'}">${isCredit?'+':'-'}₹${parseFloat(t.amount).toFixed(0)}</div>
+            </div>`;
+        }).join('') : `<div class="mini-tx-empty">No transactions yet</div>`;
+
         return `
-        <div class="account-card">
-            <div class="account-card-top">
-                <div class="account-avatar" style="background:${avatarColor(a.holderName,i)}">${initials}</div>
-                <div>
-                    <div class="account-name">${a.holderName||'—'}</div>
-                    <div class="account-vpa">${a.vpa}</div>
+        <div class="acct-wrap">
+            <!-- Physical card -->
+            <div class="bank-card" style="background:${gradient}">
+                <div class="card-top-row">
+                    <span class="card-brand">🏦 TrustMesh</span>
+                    <button class="card-eye-btn" id="eye-${safeId}" onclick="toggleBalance('${a.vpa}')">👁️</button>
+                </div>
+                <div class="card-balance-section">
+                    <div class="card-bal-label">Available Balance</div>
+                    <div id="bal-${safeId}">
+                        <span class="card-bal-value">₹${balFmt}</span>
+                    </div>
+                </div>
+                <div class="card-bottom-row">
+                    <div>
+                        <div class="card-holder-name">${a.holderName||a.vpa}</div>
+                        <div class="card-vpa-num">${masked}</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                        <div class="card-chip"></div>
+                        ${isLow ? `<span class="card-low-badge">⚠️ Low</span>` : ''}
+                        ${isZero ? `<span class="card-low-badge" style="border-color:rgba(239,68,68,0.5);color:#f87171;background:rgba(239,68,68,0.15)">Zero</span>` : ''}
+                    </div>
                 </div>
             </div>
-            <div class="account-balance-row">
-                <div class="account-balance-curr">₹</div>
-                <div class="account-balance-val">${balFormatted}</div>
+            <!-- Quick actions -->
+            <div class="card-actions">
+                <button class="card-action-btn" onclick="sendFromAccount('${a.vpa}')">
+                    <span class="card-action-icon">📤</span> Send
+                </button>
+                <button class="card-action-btn" onclick="copyUpi('${a.vpa}');toast('Share this UPI to receive money')">
+                    <span class="card-action-icon">💸</span> Request
+                </button>
+                <button class="card-action-btn" onclick="copyUpi('${a.vpa}')">
+                    <span class="card-action-icon">📋</span> Copy UPI
+                </button>
             </div>
-            <div class="account-divider"></div>
-            <div class="account-meta">
-                <span style="width:7px;height:7px;border-radius:50%;background:${bal>0?'var(--green)':'var(--text3)'};display:inline-block"></span>
-                ${bal>0 ? 'Active' : 'Zero balance'}
+            <!-- Mini transaction history -->
+            <div class="mini-tx-list">
+                <div class="mini-tx-header">Recent Transactions</div>
+                ${txHtml}
             </div>
         </div>`;
     }).join('');
