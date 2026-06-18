@@ -948,15 +948,15 @@
             <div class="add-acct-form">
                 <div class="form-group">
                     <label>UPI ID (VPA)</label>
-                    <input type="text" id="newVpa" placeholder="raj@demo">
+                    <input type="text" id="acct-newVpa" placeholder="raj@demo">
                 </div>
                 <div class="form-group">
                     <label>Full Name</label>
-                    <input type="text" id="newName" placeholder="Raj Kumar">
+                    <input type="text" id="acct-newName" placeholder="Raj Kumar">
                 </div>
                 <div class="form-group">
                     <label>Opening Balance (₹)</label>
-                    <input type="number" id="newBalance" value="1000">
+                    <input type="number" id="acct-newBalance" value="1000">
                 </div>
                 <div class="form-group">
                     <label>&nbsp;</label>
@@ -1608,19 +1608,23 @@ async function resetMesh() {
 }
 
 async function addAccount() {
-    const vpa = document.getElementById('newVpa').value.trim();
-    const holderName = document.getElementById('newName').value.trim();
-    const initialBalance = parseFloat(document.getElementById('newBalance').value)||1000;
-    if (!vpa||!holderName) { toast('⚠️ VPA and Name required!'); return; }
+    // Try Accounts tab form first, fall back to Ledger tab form
+    const vpa          = (document.getElementById('acct-newVpa')?.value   || document.getElementById('newVpa')?.value   || '').trim();
+    const holderName   = (document.getElementById('acct-newName')?.value  || document.getElementById('newName')?.value  || '').trim();
+    const balEl        = document.getElementById('acct-newBalance') || document.getElementById('newBalance');
+    const initialBalance = parseFloat(balEl?.value) || 1000;
+    if (!vpa || !holderName) { toast('⚠️ VPA and Name required!'); return; }
+    if (!vpa.includes('@')) { toast('⚠️ VPA must include @ e.g. raj@demo'); return; }
     try {
         const r = await fetch('/api/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vpa,holderName,initialBalance})});
         const data = await r.json();
-        if (!r.ok) toast('❌ '+(data.error||'Failed'));
+        if (!r.ok) toast('❌ '+(data.error||data.violations?.join(', ')||'Failed'));
         else {
-            toast('✅ Account: '+vpa);
+            toast('✅ Account added: '+vpa);
             addLog(`➕ New account: <strong>${vpa}</strong> (${holderName})`);
-            document.getElementById('newVpa').value='';
-            document.getElementById('newName').value='';
+            // Clear both forms
+            ['acct-newVpa','newVpa'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+            ['acct-newName','newName'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
             await refresh();
         }
     } catch(e) { addLog(`❌ Add account failed: ${e.message}`,'log-error'); }
