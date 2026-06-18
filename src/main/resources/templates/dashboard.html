@@ -1348,7 +1348,8 @@ async function refresh() {
         const txArr = Array.isArray(txs) ? txs : [];
         const settled = txArr.filter(t=>t.status==='SETTLED').length;
         document.getElementById('sm-settled').textContent = settled;
-        document.querySelector('#tx-table tbody').innerHTML = txArr.map(t=>`
+        const txTableBody = document.querySelector('#tx-table tbody');
+        if (txTableBody) txTableBody.innerHTML = txArr.map(t=>`
             <tr>
                 <td class="mono" style="font-size:10px">#${t.id}</td>
                 <td style="font-size:11px">${t.senderVpa} → ${t.receiverVpa}</td>
@@ -1374,7 +1375,7 @@ async function refresh() {
             else if (accArr.length>1) rS.selectedIndex=1;
         }
 
-    } catch(e) { /* silent */ }
+    } catch(e) { console.error('[refresh] error:', e); }
 }
 
 /* ════════════════════════════════════════════════════════════════
