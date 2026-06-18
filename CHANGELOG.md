@@ -6,6 +6,50 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.1.0] — 2024-06-18 · "Visualizer"
+
+Complete dashboard overhaul based on interviewer feedback:
+_"Frontend too basic, everything on one page, show how packets travel visually."_
+
+### ✨ Added
+
+#### Animated Mesh Network Canvas
+- Real-time Canvas-based network graph — phones rendered as interactive nodes
+- **Purple pulsing ring** = 4G bridge node
+- **Green glow** = offline phone holding a packet
+- **Grey** = idle offline phone
+- Animated yellow packet dot flying between nodes during gossip rounds
+- Ripple wave animations on each node when gossip propagates
+- Green burst animation on bridge node when payment settles
+- Packet count badge rendered on each node
+
+#### Packet Journey Tracker (sidebar)
+- Step-by-step live tracker showing every stage of a packet's lifecycle:
+  - `📤 Encrypted & Injected` — AES-256-GCM ciphertext ready
+  - `🔄 Gossiped — N hop(s)` — with device map
+  - `📡 Bridge: <node> Uploaded to backend`
+  - `✅ SETTLED on Ledger!` or `🚫 REJECTED (reason)`
+- Status chip updates live as each stage completes
+
+#### 4-Tab Layout (nothing on one page anymore)
+- **🗺 Mesh Visualizer** — animated canvas + journey tracker + live metrics + quick actions
+- **🎬 Demo** — step-by-step numbered flow with ciphertext display + stress test + add-account
+- **📜 Ledger** — transactions table + account balances + mesh devices grid
+- **⚡ Activity** — real-time WebSocket event log, color-coded by event type
+
+#### Live Metrics Panel
+- Settled TXs / Packets in Mesh / Duplicates Dropped / Accounts — updates via WebSocket
+
+### 🎨 Design Overhaul
+- Dark glassmorphism theme (`#080b14` base)
+- Inter + JetBrains Mono fonts (Google Fonts)
+- Gradient accent buttons with hover lift + glow
+- Responsive grid layout
+- Status badges (green=settled, amber=circuit-open, red=rejected)
+- Fixed nav with backdrop blur + WebSocket live indicator
+
+---
+
 ## [2.0.0] — 2024-06-17 · "Production-Grade"
 
 This release adds seven production-quality features on top of the v1.0 demo foundation.

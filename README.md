@@ -3,7 +3,7 @@
 <div align="center">
 
 [![Java CI with Maven](https://github.com/nims-creation/TrustMesh/actions/workflows/ci.yml/badge.svg)](https://github.com/nims-creation/TrustMesh/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/nims-creation/TrustMesh/releases)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/nims-creation/TrustMesh/releases)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.5-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
 [![Tests](https://img.shields.io/badge/Tests-31%20passing-success.svg)](./src/test)
@@ -27,22 +27,23 @@
 
 1. [Problem Statement](#-problem-statement)
 2. [Solution Overview](#-solution-overview)
-3. [Quick Start](#-quick-start)
-4. [System Design](#️-system-design)
+3. [Dashboard & Visualizer](#-dashboard--visualizer)
+4. [Quick Start](#-quick-start)
+5. [System Design](#️-system-design)
    - [High-Level Architecture](#high-level-architecture)
    - [Component Architecture](#component-architecture)
    - [Data Flow — End to End](#data-flow--end-to-end)
    - [Sequence Diagram](#sequence-diagram)
    - [Database Schema Design](#database-schema-design)
    - [Concurrency & Idempotency Model](#concurrency--idempotency-model)
-5. [Security Model](#-security-model)
-6. [Core Features](#-core-features)
-7. [Tech Stack](#️-tech-stack)
-8. [API Reference](#-api-reference)
-9. [Testing](#-testing)
-10. [Deployment](#-deployment)
-11. [Scalability Roadmap](#-scalability-roadmap)
-12. [Documentation](#-documentation)
+6. [Security Model](#-security-model)
+7. [Core Features](#-core-features)
+8. [Tech Stack](#️-tech-stack)
+9. [API Reference](#-api-reference)
+10. [Testing](#-testing)
+11. [Deployment](#-deployment)
+12. [Scalability Roadmap](#-scalability-roadmap)
+13. [Documentation](#-documentation)
 
 ---
 
@@ -55,6 +56,50 @@ In areas with poor or no connectivity (rural villages, underground metro station
 Current workarounds (UPI Lite, USSD-based payments) are limited in scope, amount-capped, and require at least intermittent connectivity or specialized network infrastructure.
 
 **TrustMesh solves this** by enabling end-to-end encrypted payment packets to "gossip" from phone to phone over Bluetooth Low Energy (BLE) mesh networks, without any single device needing internet access — until a "bridge node" eventually surfaces online.
+
+---
+
+## 🖥 Dashboard & Visualizer
+
+The TrustMesh dashboard is a fully animated, real-time UI that visualizes the complete offline payment journey — from encryption to settlement.
+
+### 4 Dedicated Tabs
+
+| Tab | What you see |
+|---|---|
+| 🗺 **Mesh Visualizer** | Animated Canvas network graph — phones as nodes, packets flying between them |
+| 🎬 **Demo** | Step-by-step numbered flow: Inject → Gossip → Bridge Upload |
+| 📜 **Ledger** | Transaction table + account balances + mesh device grid |
+| ⚡ **Activity** | Real-time WebSocket event log — color-coded by event type |
+
+### Mesh Visualizer — What the interviewer sees:
+
+```
+📵 phone-alice          📵 phone-bob
+   (offline)    ──────►   (offline)
+       │                     │
+       ▼ gossip              ▼ gossip
+   📱 phone-raj         🌐 phone-bridge
+  (has packet ●1)     (4G bridge — uploads)
+                            │
+                            ▼
+                    Backend: SETTLED ✅
+```
+
+- **Purple pulsing ring** → 4G bridge node
+- **Green glow** → offline phone holding a packet  
+- **Yellow flying dot** → packet in flight between nodes
+- **Ripple wave animation** → gossip propagation in progress
+- **Green burst** → payment settled!
+
+### Packet Journey Tracker
+Right sidebar shows every lifecycle stage in real-time:
+```
+✅ Encrypted & Injected        — AES-256-GCM ciphertext ready
+✅ Gossiped — 3 hop(s)         — {phone-alice:1, phone-bob:1, phone-raj:1}
+📡 Bridge: phone-bridge        — Uploaded to backend
+✅ SETTLED on Ledger!          — 3 hops, zero internet required
+```
 
 ---
 
