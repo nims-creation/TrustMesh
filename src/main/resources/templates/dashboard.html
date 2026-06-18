@@ -792,9 +792,9 @@ let gossipWave = [];    // ripple animations on nodes
 let dupeCount = 0;
 
 const NODE_COLORS = {
-    offline: { fill:'#1e293b', stroke:'#334155', glow:null },
-    bridge:  { fill:'rgba(99,102,241,0.15)', stroke:'#6366f1', glow:'rgba(99,102,241,0.5)' },
-    active:  { fill:'rgba(34,197,94,0.12)', stroke:'#22c55e', glow:'rgba(34,197,94,0.6)' }
+    offline: { fill:'#1e3a5f', stroke:'#3b82f6', glow:null },
+    bridge:  { fill:'rgba(99,102,241,0.45)', stroke:'#818cf8', glow:'rgba(99,102,241,0.7)' },
+    active:  { fill:'rgba(34,197,94,0.40)', stroke:'#4ade80', glow:'rgba(34,197,94,0.8)' }
 };
 
 let nodePositions = {};
@@ -843,53 +843,63 @@ function drawArrow(x1,y1,x2,y2,color,alpha=0.3) {
 }
 
 function drawNode(x,y,label,type,pulsePhase) {
-    const R = 26;
+    const R = 30;
     const col = NODE_COLORS[type] || NODE_COLORS.offline;
 
-    // Glow
+    // Glow halo
     if (col.glow) {
-        const g = ctx.createRadialGradient(x,y,R*0.5,x,y,R*2.2);
-        g.addColorStop(0, col.glow.replace(')',',0.35)').replace('rgba(','rgba('));
-        g.addColorStop(1,'transparent');
-        ctx.beginPath(); ctx.arc(x,y,R*2.2,0,Math.PI*2);
+        const g = ctx.createRadialGradient(x,y,R*0.3,x,y,R*2.5);
+        g.addColorStop(0, col.glow);
+        g.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.beginPath(); ctx.arc(x,y,R*2.5,0,Math.PI*2);
         ctx.fillStyle = g; ctx.fill();
     }
 
-    // Pulse ring for active nodes
+    // Pulse ring for active/bridge nodes
     if (type === 'active' || type === 'bridge') {
-        const pR = R + 8 + Math.sin(pulsePhase) * 5;
+        const pR = R + 8 + Math.sin(pulsePhase) * 6;
         ctx.save();
-        ctx.globalAlpha = 0.25 + 0.15 * Math.sin(pulsePhase);
+        ctx.globalAlpha = 0.5 + 0.3 * Math.sin(pulsePhase);
         ctx.beginPath(); ctx.arc(x,y,pR,0,Math.PI*2);
-        ctx.strokeStyle = col.stroke; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.strokeStyle = col.stroke; ctx.lineWidth = 2; ctx.stroke();
         ctx.restore();
     }
 
-    // Node body
+    // Node body with gradient fill
+    const bodyGrad = ctx.createRadialGradient(x-R*0.3, y-R*0.3, 2, x, y, R);
+    bodyGrad.addColorStop(0, type==='offline'?'#2d4a7a':'white');
+    bodyGrad.addColorStop(1, col.fill);
     ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2);
-    ctx.fillStyle = col.fill; ctx.fill();
-    ctx.strokeStyle = col.stroke; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = bodyGrad; ctx.fill();
+    ctx.strokeStyle = col.stroke; ctx.lineWidth = 2.5; ctx.stroke();
 
     // Icon
-    ctx.font = '14px serif';
+    ctx.font = '16px serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';
     ctx.fillText(type === 'bridge' ? '🌐' : (type === 'active' ? '📱' : '📵'), x, y);
 
-    // Label
+    // Label — always bright enough to read
     const shortLabel = label.replace('phone-','');
-    ctx.font = '500 10px Inter, sans-serif';
-    ctx.fillStyle = type === 'offline' ? '#475569' : '#94a3b8';
-    ctx.fillText(shortLabel, x, y + R + 12);
+    ctx.font = 'bold 11px Inter, sans-serif';
+    ctx.fillStyle = type === 'offline' ? '#93c5fd' : '#f1f5f9';
+    // shadow for readability
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(shortLabel, x, y + R + 14);
+    ctx.shadowBlur = 0;
 
     // Packet count badge
     const dev = meshState.devices.find(d => d.deviceId === label);
     if (dev && dev.packetCount > 0) {
-        ctx.beginPath(); ctx.arc(x+R-4, y-R+4, 9, 0, Math.PI*2);
-        ctx.fillStyle = '#f59e0b'; ctx.fill();
-        ctx.font = 'bold 9px Inter';
+        ctx.beginPath(); ctx.arc(x+R-2, y-R+4, 10, 0, Math.PI*2);
+        ctx.fillStyle = '#f59e0b';
+        ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 10px Inter';
         ctx.fillStyle = '#000';
-        ctx.fillText(dev.packetCount, x+R-4, y-R+4);
+        ctx.fillText(dev.packetCount, x+R-2, y-R+4);
     }
 }
 
@@ -907,7 +917,7 @@ function drawFrame() {
         for (let j = i+1; j < devIds.length; j++) {
             const a = nodePositions[devIds[i]];
             const b = nodePositions[devIds[j]];
-            if (a && b) drawArrow(a.x,a.y,b.x,b.y,'#334155',0.5);
+            if (a && b) drawArrow(a.x,a.y,b.x,b.y,'#3b82f6',0.25);
         }
     }
 
