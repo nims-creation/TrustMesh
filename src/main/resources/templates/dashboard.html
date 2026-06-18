@@ -1,555 +1,1377 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="TrustMesh — UPI Offline Mesh Demo. Send payments with zero internet via encrypted gossip protocol.">
-    <meta name="theme-color" content="#0c0c0d">
+    <meta name="description" content="TrustMesh — UPI Offline Mesh Demo. Visualize encrypted payment packets traveling through a Bluetooth mesh network without internet.">
+    <meta name="theme-color" content="#080b14">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>">
-    <title>TrustMesh — UPI Offline Mesh Demo</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <!-- SockJS + STOMP: WebSocket client with HTTP long-poll fallback -->
+    <title>TrustMesh — UPI Offline Mesh Visualizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
-</head>
+    <style>
+        :root {
+            --bg: #080b14;
+            --bg2: #0d1220;
+            --bg3: #121828;
+            --border: rgba(99,102,241,0.15);
+            --border2: rgba(255,255,255,0.07);
+            --accent: #6366f1;
+            --accent2: #818cf8;
+            --green: #22c55e;
+            --green2: #4ade80;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --text: #f1f5f9;
+            --text2: #94a3b8;
+            --text3: #475569;
+            --node-offline: #1e293b;
+            --node-bridge: rgba(99,102,241,0.25);
+            --node-active: rgba(34,197,94,0.3);
+            --glow: 0 0 20px rgba(99,102,241,0.4);
+            --glow-green: 0 0 20px rgba(34,197,94,0.4);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
 
+        /* ── NAV ─────────────────────────────────────────────────── */
+        .nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(8,11,20,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            height: 56px;
+            display: flex; align-items: center;
+        }
+        .nav-inner {
+            max-width: 1400px; width: 100%; margin: 0 auto;
+            padding: 0 24px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .nav-brand {
+            font-size: 18px; font-weight: 700; letter-spacing: -0.5px;
+            display: flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, var(--accent2), var(--green2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .nav-tabs {
+            display: flex; gap: 4px;
+        }
+        .nav-tab {
+            padding: 6px 16px; border-radius: 8px; font-size: 13px;
+            font-weight: 500; cursor: pointer; transition: all 0.2s;
+            background: transparent; color: var(--text2); border: none;
+            font-family: 'Inter', sans-serif;
+        }
+        .nav-tab:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+        .nav-tab.active { background: rgba(99,102,241,0.15); color: var(--accent2); }
+        .nav-right { display: flex; align-items: center; gap: 12px; }
+        .ws-badge {
+            font-size: 11px; padding: 3px 10px; border-radius: 20px;
+            font-weight: 600; letter-spacing: 0.3px;
+            background: rgba(239,68,68,0.1); color: #f87171;
+            border: 1px solid rgba(239,68,68,0.2);
+            transition: all 0.4s;
+        }
+        .ws-badge.live {
+            background: rgba(34,197,94,0.1); color: var(--green2);
+            border-color: rgba(34,197,94,0.2);
+        }
+
+        /* ── MAIN LAYOUT ─────────────────────────────────────────── */
+        .main { max-width: 1400px; margin: 0 auto; padding: 72px 24px 40px; }
+
+        /* ── TABS ────────────────────────────────────────────────── */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ══ TAB 1: VISUALIZER ═══════════════════════════════════════ */
+        .visualizer-grid {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            min-height: calc(100vh - 130px);
+        }
+        .canvas-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+        }
+        .canvas-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .canvas-title { font-size: 14px; font-weight: 600; color: var(--text); }
+        .canvas-subtitle { font-size: 11px; color: var(--text2); margin-top: 2px; }
+        #mesh-canvas {
+            width: 100%; display: block;
+            background: radial-gradient(ellipse at 50% 50%, rgba(99,102,241,0.03) 0%, transparent 70%);
+        }
+        .canvas-legend {
+            position: absolute; bottom: 16px; left: 20px;
+            display: flex; gap: 16px;
+        }
+        .legend-item {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 11px; color: var(--text2);
+        }
+        .legend-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+        }
+
+        /* Sidebar */
+        .sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+        /* Journey Tracker */
+        .journey-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            flex: 1;
+        }
+        .journey-title {
+            font-size: 13px; font-weight: 600; color: var(--text);
+            margin-bottom: 16px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .journey-step {
+            display: flex; gap: 12px; margin-bottom: 0;
+            position: relative;
+        }
+        .journey-step:not(:last-child)::before {
+            content: ''; position: absolute;
+            left: 11px; top: 28px; bottom: -16px;
+            width: 1px;
+            background: linear-gradient(to bottom, var(--border), transparent);
+        }
+        .journey-icon {
+            width: 24px; height: 24px; border-radius: 50%;
+            flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px;
+            background: var(--bg3); border: 1px solid var(--border);
+            margin-top: 2px;
+        }
+        .journey-icon.done {
+            background: rgba(34,197,94,0.1);
+            border-color: rgba(34,197,94,0.3);
+        }
+        .journey-icon.active-step {
+            background: rgba(99,102,241,0.1);
+            border-color: rgba(99,102,241,0.4);
+            animation: pulse-border 1.5s infinite;
+        }
+        @keyframes pulse-border {
+            0%,100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.3); }
+            50%      { box-shadow: 0 0 0 6px rgba(99,102,241,0); }
+        }
+        .journey-body { padding-bottom: 16px; }
+        .journey-label {
+            font-size: 12px; font-weight: 600; color: var(--text);
+        }
+        .journey-detail {
+            font-size: 11px; color: var(--text2); margin-top: 2px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        #journey-steps { display: flex; flex-direction: column; gap: 0; }
+        #journey-empty {
+            text-align: center; padding: 32px 0;
+            color: var(--text3); font-size: 12px; line-height: 1.8;
+        }
+
+        /* Stats panel */
+        .stats-mini {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 20px;
+        }
+        .stats-mini-title {
+            font-size: 11px; font-weight: 600; color: var(--text2);
+            text-transform: uppercase; letter-spacing: 0.8px;
+            margin-bottom: 14px;
+        }
+        .stats-mini-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+        }
+        .stat-mini {
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .stat-mini-val {
+            font-size: 24px; font-weight: 700;
+            background: linear-gradient(135deg, var(--text), var(--text2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .stat-mini-label {
+            font-size: 10px; color: var(--text3); margin-top: 2px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        /* Controls panel in visualizer */
+        .controls-mini {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+        }
+        .controls-mini-title {
+            font-size: 13px; font-weight: 600; margin-bottom: 14px;
+            color: var(--text);
+        }
+        .btn-group { display: flex; flex-direction: column; gap: 8px; }
+
+        /* ── BUTTONS ─────────────────────────────────────────────── */
+        .btn {
+            padding: 10px 18px; border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px; font-weight: 600;
+            cursor: pointer; border: none; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #4f46e5);
+            color: white;
+            box-shadow: 0 4px 14px rgba(99,102,241,0.3);
+        }
+        .btn-primary:hover { box-shadow: 0 4px 20px rgba(99,102,241,0.5); transform: translateY(-1px); }
+        .btn-secondary {
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            color: var(--text2);
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent2); }
+        .btn-success {
+            background: linear-gradient(135deg, #16a34a, #15803d);
+            color: white;
+            box-shadow: 0 4px 14px rgba(22,163,74,0.3);
+        }
+        .btn-success:hover { box-shadow: 0 4px 20px rgba(22,163,74,0.5); transform: translateY(-1px); }
+        .btn-danger {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.2);
+            color: #f87171;
+        }
+        .btn-danger:hover { background: rgba(239,68,68,0.15); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+        /* ══ TAB 2: DEMO ═════════════════════════════════════════════ */
+        .demo-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+        .card-title {
+            font-size: 14px; font-weight: 700; margin-bottom: 6px;
+            color: var(--text);
+        }
+        .card-subtitle { font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+
+        .step-flow {
+            display: flex; flex-direction: column; gap: 0;
+        }
+        .step {
+            display: flex; gap: 16px; align-items: flex-start;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border2);
+        }
+        .step:last-child { border-bottom: none; }
+        .step-num-circle {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), #4f46e5);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700; flex-shrink: 0;
+            box-shadow: 0 0 12px rgba(99,102,241,0.4);
+        }
+        .step-content { flex: 1; }
+        .step-label {
+            font-size: 13px; font-weight: 600; margin-bottom: 12px;
+            color: var(--text);
+        }
+        .form-row {
+            display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+        }
+        .form-field { display: flex; flex-direction: column; gap: 4px; }
+        .form-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+        select, input[type="number"], input[type="text"] {
+            background: var(--bg3); border: 1px solid var(--border2);
+            color: var(--text); border-radius: 8px;
+            padding: 8px 12px; font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            outline: none; transition: border 0.2s;
+        }
+        select:focus, input:focus { border-color: var(--accent); }
+
+        /* Cipher box */
+        .cipher-box {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px; color: var(--green2);
+            word-break: break-all;
+            line-height: 1.6;
+            min-height: 80px;
+            max-height: 140px;
+            overflow-y: auto;
+        }
+        .cipher-label {
+            font-size: 11px; color: var(--text2); margin-bottom: 8px;
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        /* Stress result */
+        .stress-result {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px; margin-top: 14px;
+        }
+        .stress-outcome {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 12px; margin: 6px 0;
+        }
+
+        /* ══ TAB 3: LEDGER ═══════════════════════════════════════════ */
+        .ledger-layout { display: flex; flex-direction: column; gap: 20px; }
+        .ledger-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+        }
+
+        table {
+            width: 100%; border-collapse: collapse;
+            font-size: 12px;
+        }
+        th {
+            text-align: left; padding: 10px 14px;
+            background: var(--bg3);
+            color: var(--text3); font-size: 10px;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            border-bottom: 1px solid var(--border2);
+        }
+        td { padding: 12px 14px; border-bottom: 1px solid var(--border2); }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px; border-radius: 20px;
+            font-size: 10px; font-weight: 600;
+        }
+        .badge-settled { background: rgba(34,197,94,0.1); color: var(--green2); border: 1px solid rgba(34,197,94,0.2); }
+        .badge-rejected { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+        .badge-circuit { background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
+        .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); }
+
+        /* Add account */
+        .add-account-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;
+        }
+
+        /* ══ TAB 4: ACTIVITY ═════════════════════════════════════════ */
+        .activity-layout { display: flex; flex-direction: column; gap: 20px; }
+        .log-container {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 0;
+            overflow: hidden;
+        }
+        .log-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .log-body { padding: 12px; max-height: calc(100vh - 280px); overflow-y: auto; }
+        .log-entry {
+            padding: 8px 12px; border-radius: 8px;
+            font-size: 12px; color: var(--text2);
+            margin-bottom: 2px; transition: background 0.2s;
+            display: flex; gap: 10px; align-items: flex-start;
+        }
+        .log-entry:hover { background: rgba(255,255,255,0.03); }
+        .log-time { color: var(--text3); font-family: 'JetBrains Mono', monospace; font-size: 10px; flex-shrink: 0; padding-top: 1px; }
+        .log-entry.log-settled { border-left: 2px solid var(--green); }
+        .log-entry.log-error { border-left: 2px solid var(--red); }
+        .log-entry.log-warn { border-left: 2px solid var(--amber); }
+
+        /* ── TOAST ────────────────────────────────────────────────── */
+        #toast-root {
+            position: fixed; bottom: 24px; right: 24px; z-index: 999;
+            display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+        }
+        .toast {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 13px; color: var(--text);
+            animation: slide-in 0.25s ease;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        @keyframes slide-in {
+            from { opacity:0; transform: translateX(24px); }
+            to   { opacity:1; transform: translateX(0); }
+        }
+
+        /* ── MISC ─────────────────────────────────────────────────── */
+        .section-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .section-title { font-size: 18px; font-weight: 700; color: var(--text); }
+        .section-subtitle { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+        .kbd { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text3); }
+        .kbd kbd {
+            background: var(--bg3); border: 1px solid var(--border2);
+            border-radius: 4px; padding: 1px 5px; font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* info chip */
+        .chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;
+        }
+        .chip-indigo { background: rgba(99,102,241,0.1); color: var(--accent2); border: 1px solid rgba(99,102,241,0.2); }
+        .chip-green  { background: rgba(34,197,94,0.1); color: var(--green2);   border: 1px solid rgba(34,197,94,0.2); }
+        .chip-amber  { background: rgba(245,158,11,0.1); color: #fbbf24;        border: 1px solid rgba(245,158,11,0.2); }
+
+        @media(max-width:900px) {
+            .visualizer-grid { grid-template-columns: 1fr; }
+            .demo-layout { grid-template-columns: 1fr; }
+            .ledger-grid { grid-template-columns: 1fr; }
+            .add-account-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
 <body>
 
-    <!-- ══ NAVBAR ═══════════════════════════════════════════════ -->
-    <nav class="navbar" role="navigation" aria-label="Main navigation">
-        <div class="nav-container">
-            <span class="nav-brand">
-                <span class="nav-brand-icon">📡</span>
-                TrustMesh
-            </span>
-            <div class="nav-links">
-                <a href="#demo-flow" id="nav-demo">Demo</a>
-                <a href="#accounts"  id="nav-accounts">Accounts</a>
-                <a href="#ledger"    id="nav-ledger">Ledger</a>
-                <a href="#activity"  id="nav-activity">Activity</a>
-                <button id="toggle-refresh-btn" onclick="toggleRefresh()">⏸ Pause</button>
-            </div>
+<!-- ── NAV ──────────────────────────────────────────────────────── -->
+<nav class="nav">
+    <div class="nav-inner">
+        <div class="nav-brand">📡 TrustMesh</div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('visualizer', this)" id="tab-visualizer">🗺 Mesh Visualizer</button>
+            <button class="nav-tab" onclick="switchTab('demo', this)" id="tab-demo">🎬 Demo</button>
+            <button class="nav-tab" onclick="switchTab('ledger', this)" id="tab-ledger">📜 Ledger</button>
+            <button class="nav-tab" onclick="switchTab('activity', this)" id="tab-activity">⚡ Activity</button>
         </div>
-    </nav>
-
-    <div class="container">
-
-        <!-- Hero -->
-        <div class="page-hero">
-            <div class="badge-row">
-                <span id="health-badge" class="status-pill offline">
-                    <span class="status-dot"></span>
-                    Checking…
-                </span>
-                <span class="status-pill" style="background:rgba(34,197,94,0.07);color:var(--success-light);border-color:var(--green-border)">
-                    AES-256 Encrypted
-                </span>
-                <span class="status-pill" style="background:rgba(245,158,11,0.08);color:var(--amber-light);border-color:rgba(245,158,11,0.22)">
-                    Gossip Protocol
-                </span>
-            </div>
-            <h1 class="hero-title">
-                UPI Offline Mesh
-                <span style="font-weight:300;color:var(--text-lo);font-size:0.65em">— Live Demo</span>
-            </h1>
-            <p class="hero-subtitle">
-                Send money in a basement with <strong style="color:var(--text-hi)">zero internet</strong>.
-                Encrypted packets gossip from phone to phone until one with 4G reaches the backend.
-            </p>
+        <div class="nav-right">
+            <span id="ws-badge" class="ws-badge">⬤ Connecting…</span>
         </div>
+    </div>
+</nav>
 
-        <!-- Stats Bar -->
-        <div class="stats-bar section" id="stats-bar" aria-label="Live statistics">
-            <div class="stat-item">
-                <span class="stat-value" id="stat-accounts">—</span>
-                <span class="stat-label">Accounts</span>
+<div class="main">
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- TAB 1: MESH VISUALIZER                                         -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="panel-visualizer" class="tab-panel active">
+    <div class="visualizer-grid">
+
+        <!-- Canvas -->
+        <div class="canvas-card">
+            <div class="canvas-header">
+                <div>
+                    <div class="canvas-title">🗺 Mesh Network — Live View</div>
+                    <div class="canvas-subtitle">Watch packets travel phone-to-phone in real time</div>
+                </div>
+                <div style="display:flex;gap:8px">
+                    <span class="chip chip-indigo" id="chip-packets">0 packets in mesh</span>
+                    <span class="chip chip-amber" id="chip-devices">0 devices</span>
+                </div>
             </div>
-            <div class="stat-item">
-                <span class="stat-value" id="stat-settled">—</span>
-                <span class="stat-label">Settled TXs</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-value" id="stat-packets">—</span>
-                <span class="stat-label">Mesh Packets</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-value" id="stat-devices">—</span>
-                <span class="stat-label">Devices</span>
+            <canvas id="mesh-canvas" height="520"></canvas>
+            <div class="canvas-legend">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#6366f1;box-shadow:0 0 8px #6366f1"></div>
+                    4G Bridge Node
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#475569"></div>
+                    Offline Phone
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#22c55e;box-shadow:0 0 8px #22c55e"></div>
+                    Active (has packet)
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#f59e0b;border-radius:2px;transform:rotate(45deg)"></div>
+                    Packet in flight
+                </div>
             </div>
         </div>
 
-        <!-- ══ DEMO FLOW ═════════════════════════════════════════ -->
-        <div id="demo-flow" class="controls section">
-            <div class="controls-title">
-                🎬 Demo Flow
-                <span style="font-size:12px;font-weight:400;color:var(--text-lo)">simulate the full UPI offline journey</span>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Quick Actions -->
+            <div class="controls-mini">
+                <div class="controls-mini-title">⚙️ Quick Actions</div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="viz-btn-send" onclick="sendPacket()">
+                        📤 Step 1 — Inject Packet
+                    </button>
+                    <button class="btn btn-secondary" id="viz-btn-gossip" onclick="gossip()">
+                        🔄 Step 2 — Run Gossip Round
+                    </button>
+                    <button class="btn btn-success" id="viz-btn-flush" onclick="flushBridges()">
+                        📡 Step 3 — Bridge Upload → Settle
+                    </button>
+                    <button class="btn btn-danger" id="viz-btn-reset" onclick="resetMesh()">
+                        🗑 Reset Mesh
+                    </button>
+                </div>
+                <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border2);display:flex;gap:8px;flex-wrap:wrap">
+                    <div class="kbd"><kbd>G</kbd> Gossip</div>
+                    <div class="kbd"><kbd>F</kbd> Flush</div>
+                    <div class="kbd"><kbd>S</kbd> Send</div>
+                    <div class="kbd"><kbd>R</kbd> Reset</div>
+                </div>
             </div>
 
-            <div class="demo-step">
-                <span class="step-num">1</span>
-                <div class="demo-step-content">
-                    <div class="demo-step-label">Compose Payment <span style="font-weight:400;color:var(--text-lo)">(simulates sender phone)</span></div>
-                    <div class="form-row">
-                        <select id="senderVpa" aria-label="Sender VPA"></select>
-                        <span class="arrow-sep">→</span>
-                        <select id="receiverVpa" aria-label="Receiver VPA"></select>
-                        <div class="input-prefix">
-                            <span>₹</span>
-                            <input type="number" id="amount" value="500" style="width:90px" aria-label="Amount">
-                        </div>
-                        <div class="input-prefix">
-                            <span>PIN</span>
-                            <input type="text" id="pin" value="1234" maxlength="4" style="width:68px" aria-label="PIN">
-                        </div>
-                        <button id="btn-send" onclick="sendPacket()">📤 Inject into Mesh</button>
+            <!-- Packet Journey Tracker -->
+            <div class="journey-card">
+                <div class="journey-title">
+                    🛤 Packet Journey Tracker
+                    <span class="chip chip-indigo" id="journey-status">Waiting…</span>
+                </div>
+                <div id="journey-steps">
+                    <div id="journey-empty" style="text-align:center;padding:24px 0;color:var(--text3);font-size:12px;line-height:2">
+                        Inject a packet to see<br>its real-time journey<br>through the mesh 📡
                     </div>
                 </div>
             </div>
 
-            <div class="demo-step">
-                <span class="step-num">2</span>
-                <div class="demo-step-content">
-                    <div class="demo-step-label">Gossip <span style="font-weight:400;color:var(--text-lo)">— packets hop device-to-device</span></div>
-                    <button class="secondary" id="btn-gossip" onclick="gossip()">🔄 Run Gossip Round</button>
-                </div>
-            </div>
-
-            <div class="demo-step">
-                <span class="step-num">3</span>
-                <div class="demo-step-content">
-                    <div class="demo-step-label">Bridge Upload <span style="font-weight:400;color:var(--text-lo)">— bridge node hits 4G</span></div>
-                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                        <button class="secondary" id="btn-flush" onclick="flushBridges()">📡 Bridges Upload to Backend</button>
-                        <span class="small">parallel — exercises idempotency</span>
+            <!-- Stats -->
+            <div class="stats-mini">
+                <div class="stats-mini-title">Live Metrics</div>
+                <div class="stats-mini-grid">
+                    <div class="stat-mini">
+                        <div class="stat-mini-val" id="sm-settled">0</div>
+                        <div class="stat-mini-label">Settled TXs</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="stat-mini-val" id="sm-packets">0</div>
+                        <div class="stat-mini-label">In Mesh</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="stat-mini-val" id="sm-dupes">0</div>
+                        <div class="stat-mini-label">Duplicates</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="stat-mini-val" id="sm-accounts">0</div>
+                        <div class="stat-mini-label">Accounts</div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
 
-            <div style="margin-top:12px;padding-top:14px;border-top:1px solid var(--border-subtle)">
-                <button class="danger" id="btn-reset" onclick="resetMesh()">🗑 Reset Mesh + Cache</button>
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- TAB 2: DEMO                                                     -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="panel-demo" class="tab-panel">
+    <div class="section-header">
+        <div>
+            <div class="section-title">🎬 Demo Flow</div>
+            <div class="section-subtitle">Simulate the complete offline UPI journey step by step</div>
+        </div>
+    </div>
+    <div class="demo-layout">
+        <!-- Left: Steps -->
+        <div class="card">
+            <div class="step-flow">
+                <!-- Step 1 -->
+                <div class="step">
+                    <div class="step-num-circle">1</div>
+                    <div class="step-content">
+                        <div class="step-label">📤 Compose & Inject Payment <span style="font-weight:400;font-size:11px;color:var(--text2)">(simulates sender phone)</span></div>
+                        <div class="form-row">
+                            <div class="form-field">
+                                <span class="form-label">From</span>
+                                <select id="senderVpa" style="width:150px"></select>
+                            </div>
+                            <div style="color:var(--text3);font-size:18px;padding-top:14px">→</div>
+                            <div class="form-field">
+                                <span class="form-label">To</span>
+                                <select id="receiverVpa" style="width:150px"></select>
+                            </div>
+                            <div class="form-field">
+                                <span class="form-label">Amount (₹)</span>
+                                <input type="number" id="amount" value="500" style="width:90px">
+                            </div>
+                            <div class="form-field">
+                                <span class="form-label">PIN</span>
+                                <input type="text" id="pin" value="1234" maxlength="4" style="width:70px">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:14px;width:100%" id="btn-send" onclick="sendPacket()">
+                            📤 Encrypt & Inject into Mesh
+                        </button>
+                    </div>
+                </div>
+                <!-- Step 2 -->
+                <div class="step">
+                    <div class="step-num-circle">2</div>
+                    <div class="step-content">
+                        <div class="step-label">🔄 Gossip Round <span style="font-weight:400;font-size:11px;color:var(--text2)">packets hop device-to-device via Bluetooth</span></div>
+                        <p style="font-size:11px;color:var(--text2);margin-bottom:12px">Each gossip round, offline phones share their packets with neighbors. The more rounds, the farther the packet travels.</p>
+                        <button class="btn btn-secondary" style="width:100%" id="btn-gossip" onclick="gossip()">
+                            🔄 Run Gossip Round
+                        </button>
+                    </div>
+                </div>
+                <!-- Step 3 -->
+                <div class="step">
+                    <div class="step-num-circle">3</div>
+                    <div class="step-content">
+                        <div class="step-label">📡 Bridge Upload <span style="font-weight:400;font-size:11px;color:var(--text2)">bridge node finds 4G and uploads</span></div>
+                        <p style="font-size:11px;color:var(--text2);margin-bottom:12px">Multiple bridge nodes may upload simultaneously → exercises idempotency. Only 1 packet should settle.</p>
+                        <button class="btn btn-success" style="width:100%" id="btn-flush" onclick="flushBridges()">
+                            📡 Bridges Upload to Backend
+                        </button>
+                    </div>
+                </div>
             </div>
+            <button class="btn btn-danger" style="margin-top:8px;width:100%" onclick="resetMesh()">🗑 Reset Mesh + Cache</button>
         </div>
 
-        <!-- ══ DEVICES + ACCOUNTS ════════════════════════════════ -->
-        <div id="accounts" class="grid grid-2 section">
+        <!-- Right: Under the Hood -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+            <!-- Ciphertext -->
             <div class="card">
-                <h2>📱 Mesh Devices</h2>
-                <div id="devices" style="margin-top:16px"></div>
+                <div class="card-title">🔐 What Bridge Node Sees</div>
+                <div class="card-subtitle">Relay phone carries this opaque blob — cannot read sender, receiver, or amount</div>
+                <div class="cipher-label">
+                    <span class="chip chip-indigo">AES-256-GCM</span>
+                    Last Encrypted Ciphertext
+                </div>
+                <div class="cipher-box" id="ciphertext-display">
+                    <span style="color:var(--text3)">Inject a packet to see the ciphertext…</span>
+                </div>
             </div>
 
+            <!-- Idempotency Stress Test -->
             <div class="card">
-                <h2>🏦 Account Balances</h2>
-                <table id="accounts-table" aria-label="Account balances">
+                <div class="card-title">⚡ Idempotency Stress Test</div>
+                <div class="card-subtitle">3 bridge nodes fire same packet simultaneously — only 1 should settle</div>
+                <button class="btn btn-secondary" style="width:100%" id="btn-stress" onclick="runStressTest()">
+                    🧪 Run Concurrent Stress Test
+                </button>
+                <div id="stress-result"></div>
+            </div>
+
+            <!-- Add Account -->
+            <div class="card">
+                <div class="card-title">➕ Add Account</div>
+                <div class="add-account-grid">
+                    <div class="form-field">
+                        <span class="form-label">VPA</span>
+                        <input type="text" id="newVpa" placeholder="raj@demo">
+                    </div>
+                    <div class="form-field">
+                        <span class="form-label">Name</span>
+                        <input type="text" id="newName" placeholder="Raj Kumar">
+                    </div>
+                    <div class="form-field">
+                        <span class="form-label">Balance (₹)</span>
+                        <input type="number" id="newBalance" value="1000">
+                    </div>
+                    <div class="form-field">
+                        <span class="form-label">&nbsp;</span>
+                        <button class="btn btn-primary" onclick="addAccount()">Add</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- TAB 3: LEDGER                                                   -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="panel-ledger" class="tab-panel">
+    <div class="ledger-layout">
+        <div class="ledger-grid">
+            <!-- Transactions -->
+            <div class="card">
+                <div class="card-title">📜 Transaction Ledger</div>
+                <div class="card-subtitle">All settled payments from the backend DB</div>
+                <div style="overflow-x:auto">
+                    <table id="tx-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th><th>From → To</th><th>Amount</th>
+                                <th>Status</th><th>Hops</th><th>Bridge</th><th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Account Balances -->
+            <div class="card">
+                <div class="card-title">🏦 Account Balances</div>
+                <div class="card-subtitle">Live balance after settlements</div>
+                <table id="accounts-table">
                     <thead>
-                        <tr>
-                            <th>VPA</th>
-                            <th>Holder</th>
-                            <th>Balance</th>
-                        </tr>
+                        <tr><th>VPA</th><th>Holder</th><th>Balance</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
-                <p class="small" id="cacheInfo" style="margin-top:10px"></p>
-                <div class="add-account-section">
-                    <div class="section-mini-title">Add New Account</div>
-                    <div class="add-account-row">
-                        <input type="text" id="newVpa" placeholder="VPA (e.g. raj@demo)" style="width:156px">
-                        <input type="text" id="newName" placeholder="Holder Name" style="width:136px">
-                        <div class="input-prefix">
-                            <span>₹</span>
-                            <input type="number" id="newBalance" placeholder="Balance" value="1000" style="width:100px" onfocus="this.select()">
-                        </div>
-                        <button id="btn-add-account" onclick="addAccount()">➕ Add</button>
-                    </div>
-                </div>
+                <p style="font-size:11px;color:var(--text3);margin-top:10px" id="cacheInfo"></p>
             </div>
         </div>
 
-        <!-- ══ LEDGER ════════════════════════════════════════════ -->
-        <div id="ledger" class="card section">
-            <h2>📜 Transaction Ledger</h2>
-            <div style="overflow-x:auto">
-                <table id="tx-table" aria-label="Transaction ledger">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>From</th>
-                            <th>To</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                            <th>Bridge</th>
-                            <th>Hops</th>
-                            <th>Settled At</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+        <!-- Mesh Devices table -->
+        <div class="card">
+            <div class="card-title">📱 Mesh Devices</div>
+            <div class="card-subtitle">Phones in the mesh and packets they carry</div>
+            <div id="devices-table-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:8px"></div>
         </div>
+    </div>
+</div>
 
-        <!-- ══ UNDER THE HOOD ════════════════════════════════════ -->
-        <div class="card section">
-            <h2>🔌 Under The Hood</h2>
-            <p class="small" style="margin-bottom:20px">Proof this isn't just add/subtract — real encryption and idempotency at work.</p>
-            <div class="grid grid-2" style="gap:20px">
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- TAB 4: ACTIVITY                                                 -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="panel-activity" class="tab-panel">
+    <div class="activity-layout">
+        <div class="log-container">
+            <div class="log-header">
                 <div>
-                    <h3 style="margin-bottom:10px;font-size:13px">🔐 Last Encrypted Ciphertext <span class="small">(What Bridge Node Sees)</span></h3>
-                    <div id="ciphertext-display" class="ciphertext-box">
-                        <span style="color:var(--text-lo)">Inject a packet to see the encrypted ciphertext…</span>
-                    </div>
-                    <p class="small" style="margin-top:8px">💡 The bridge node sees <strong style="color:var(--text-mid)">only this opaque blob</strong> — it cannot read sender, receiver, or amount.</p>
+                    <div style="font-size:14px;font-weight:700">⚡ Real-time Activity Log</div>
+                    <div style="font-size:11px;color:var(--text2);margin-top:2px">WebSocket STOMP events — server push, no polling</div>
                 </div>
-                <div>
-                    <h3 style="margin-bottom:10px;font-size:13px">⚡ Idempotency Stress Test</h3>
-                    <p class="small" style="margin-bottom:8px">
-                        Fires the same encrypted packet from <strong style="color:var(--text-hi)">3 bridge nodes simultaneously</strong> using Java threads.
-                        Only 1 should settle. Others get blocked.
-                    </p>
-                    <p class="small" style="color:var(--amber);margin-bottom:14px">
-                        ⚠️ Uses a fixed ₹1 packet — goal is to prove idempotency, not test the amount.
-                    </p>
-                    <button class="btn-stress" id="btn-stress" onclick="runStressTest()">🧪 Run Stress Test</button>
-                    <div id="stress-result" style="margin-top:14px"></div>
-                </div>
+                <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px" onclick="document.getElementById('log').innerHTML=''">Clear</button>
+            </div>
+            <div class="log-body" id="log"></div>
+        </div>
+    </div>
+</div>
+
+</div><!-- /main -->
+
+<div id="toast-root"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   MESH CANVAS VISUALIZER
+   ════════════════════════════════════════════════════════════════ */
+const canvas = document.getElementById('mesh-canvas');
+const ctx = canvas.getContext('2d');
+let meshState = { devices: [] };
+let animPackets = [];   // flying packet animations
+let gossipWave = [];    // ripple animations on nodes
+let dupeCount = 0;
+
+const NODE_COLORS = {
+    offline: { fill:'#1e293b', stroke:'#334155', glow:null },
+    bridge:  { fill:'rgba(99,102,241,0.15)', stroke:'#6366f1', glow:'rgba(99,102,241,0.5)' },
+    active:  { fill:'rgba(34,197,94,0.12)', stroke:'#22c55e', glow:'rgba(34,197,94,0.6)' }
+};
+
+let nodePositions = {};
+let lastCanvasWidth = 0;
+
+function resizeCanvas() {
+    const card = canvas.parentElement;
+    canvas.width = card.clientWidth;
+    canvas.height = 520;
+    lastCanvasWidth = canvas.width;
+    placeNodes();
+}
+
+function placeNodes() {
+    const devices = meshState.devices;
+    if (!devices.length) return;
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2;
+    const r = Math.min(W, H) * 0.33;
+
+    devices.forEach((d, i) => {
+        const angle = (i / devices.length) * Math.PI * 2 - Math.PI / 2;
+        nodePositions[d.deviceId] = {
+            x: cx + r * Math.cos(angle),
+            y: cy + r * Math.sin(angle)
+        };
+    });
+}
+
+function drawArrow(x1,y1,x2,y2,color,alpha=0.3) {
+    const dx = x2-x1, dy = y2-y1;
+    const len = Math.sqrt(dx*dx+dy*dy);
+    const nx = dx/len, ny = dy/len;
+    const R = 28;
+    const sx = x1 + nx*R, sy = y1 + ny*R;
+    const ex = x2 - nx*R, ey = y2 - ny*R;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5,5]);
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+}
+
+function drawNode(x,y,label,type,pulsePhase) {
+    const R = 26;
+    const col = NODE_COLORS[type] || NODE_COLORS.offline;
+
+    // Glow
+    if (col.glow) {
+        const g = ctx.createRadialGradient(x,y,R*0.5,x,y,R*2.2);
+        g.addColorStop(0, col.glow.replace(')',',0.35)').replace('rgba(','rgba('));
+        g.addColorStop(1,'transparent');
+        ctx.beginPath(); ctx.arc(x,y,R*2.2,0,Math.PI*2);
+        ctx.fillStyle = g; ctx.fill();
+    }
+
+    // Pulse ring for active nodes
+    if (type === 'active' || type === 'bridge') {
+        const pR = R + 8 + Math.sin(pulsePhase) * 5;
+        ctx.save();
+        ctx.globalAlpha = 0.25 + 0.15 * Math.sin(pulsePhase);
+        ctx.beginPath(); ctx.arc(x,y,pR,0,Math.PI*2);
+        ctx.strokeStyle = col.stroke; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.restore();
+    }
+
+    // Node body
+    ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2);
+    ctx.fillStyle = col.fill; ctx.fill();
+    ctx.strokeStyle = col.stroke; ctx.lineWidth = 2; ctx.stroke();
+
+    // Icon
+    ctx.font = '14px serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(type === 'bridge' ? '🌐' : (type === 'active' ? '📱' : '📵'), x, y);
+
+    // Label
+    const shortLabel = label.replace('phone-','');
+    ctx.font = '500 10px Inter, sans-serif';
+    ctx.fillStyle = type === 'offline' ? '#475569' : '#94a3b8';
+    ctx.fillText(shortLabel, x, y + R + 12);
+
+    // Packet count badge
+    const dev = meshState.devices.find(d => d.deviceId === label);
+    if (dev && dev.packetCount > 0) {
+        ctx.beginPath(); ctx.arc(x+R-4, y-R+4, 9, 0, Math.PI*2);
+        ctx.fillStyle = '#f59e0b'; ctx.fill();
+        ctx.font = 'bold 9px Inter';
+        ctx.fillStyle = '#000';
+        ctx.fillText(dev.packetCount, x+R-4, y-R+4);
+    }
+}
+
+let phase = 0;
+function drawFrame() {
+    if (canvas.width !== lastCanvasWidth) resizeCanvas();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    phase += 0.03;
+
+    const devices = meshState.devices;
+    const devIds = devices.map(d => d.deviceId);
+
+    // Draw edges between all nodes
+    for (let i = 0; i < devIds.length; i++) {
+        for (let j = i+1; j < devIds.length; j++) {
+            const a = nodePositions[devIds[i]];
+            const b = nodePositions[devIds[j]];
+            if (a && b) drawArrow(a.x,a.y,b.x,b.y,'#334155',0.5);
+        }
+    }
+
+    // Draw flying packets
+    animPackets = animPackets.filter(p => p.progress < 1);
+    animPackets.forEach(p => {
+        p.progress += 0.025;
+        const t = p.progress;
+        const x = p.x1 + (p.x2-p.x1)*t;
+        const y = p.y1 + (p.y2-p.y1)*t + Math.sin(t*Math.PI)*-30;
+
+        ctx.save();
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(x, y, 7, 0, Math.PI*2);
+        ctx.fillStyle = '#f59e0b';
+        ctx.fill();
+        ctx.restore();
+
+        // Trail
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.arc(x - (p.x2-p.x1)*0.04, y - (p.y2-p.y1)*0.04, 4, 0, Math.PI*2);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fill();
+        ctx.restore();
+    });
+
+    // Gossip ripple waves
+    gossipWave = gossipWave.filter(w => w.r < 80);
+    gossipWave.forEach(w => {
+        w.r += 1.5;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 0.6 - w.r/80);
+        ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, Math.PI*2);
+        ctx.strokeStyle = w.color || '#6366f1'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.restore();
+    });
+
+    // Draw nodes
+    devices.forEach(d => {
+        const pos = nodePositions[d.deviceId];
+        if (!pos) return;
+        const type = d.hasInternet ? 'bridge' : (d.packetCount > 0 ? 'active' : 'offline');
+        drawNode(pos.x, pos.y, d.deviceId, type, phase);
+    });
+
+    requestAnimationFrame(drawFrame);
+}
+
+function triggerGossipAnimation() {
+    const devices = meshState.devices;
+    const devIds = devices.map(d => d.deviceId);
+    devIds.forEach((id, i) => {
+        setTimeout(() => {
+            const pos = nodePositions[id];
+            if (pos) gossipWave.push({x:pos.x, y:pos.y, r:0, color:'#6366f1'});
+        }, i * 80);
+    });
+
+    // Send random packet animations between nodes
+    for (let k = 0; k < Math.min(devIds.length-1, 3); k++) {
+        const from = devIds[k];
+        const to   = devIds[(k+1) % devIds.length];
+        const pf = nodePositions[from], pt = nodePositions[to];
+        if (pf && pt) {
+            setTimeout(() => {
+                animPackets.push({x1:pf.x,y1:pf.y,x2:pt.x,y2:pt.y,progress:0});
+            }, k * 150);
+        }
+    }
+}
+
+function triggerSettleAnimation(bridgeId) {
+    const pos = nodePositions[bridgeId];
+    if (pos) {
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+                gossipWave.push({x:pos.x, y:pos.y, r:0, color:'#22c55e'});
+            }, i * 120);
+        }
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PACKET JOURNEY TRACKER
+   ════════════════════════════════════════════════════════════════ */
+let journeySteps = [];
+let journeyPacketId = null;
+
+function startJourney(packetId, senderVpa, amount) {
+    journeyPacketId = packetId;
+    journeySteps = [];
+    addJourneyStep('done', '📤', 'Encrypted & Injected',
+        `₹${amount} from ${senderVpa} — AES-256-GCM ciphertext ready`);
+    addJourneyStep('active-step', '🔄', 'Gossiping through mesh…',
+        `Waiting for gossip rounds to propagate packet`);
+    renderJourney('Gossiping…', 'chip-amber');
+}
+
+function addJourneyStep(cls, icon, label, detail) {
+    journeySteps.push({cls, icon, label, detail});
+}
+
+function markJourneyGossip(transfers, counts) {
+    if (!journeyPacketId) return;
+    const gossipStep = journeySteps.find(s => s.label.startsWith('Gossip'));
+    if (gossipStep) {
+        gossipStep.cls = 'done';
+        gossipStep.label = `Gossiped — ${transfers} hop(s)`;
+        gossipStep.detail = `Devices: ${JSON.stringify(counts)}`;
+    }
+    addJourneyStep('active-step', '📡', 'Bridge uploading…', 'Waiting for a bridge node to find 4G');
+    renderJourney('Bridge uploading…', 'chip-indigo');
+}
+
+function markJourneySettled(outcome, bridgeId, hopCount) {
+    if (!journeyPacketId) return;
+    const uploadStep = journeySteps.find(s => s.label.startsWith('Bridge'));
+    if (uploadStep) {
+        uploadStep.cls = 'done';
+        uploadStep.label = `Bridge: ${bridgeId}`;
+        uploadStep.detail = `Uploaded to backend`;
+    }
+    const settled = outcome === 'SETTLED';
+    addJourneyStep('done',
+        settled ? '✅' : '🚫',
+        settled ? 'SETTLED on Ledger!' : `REJECTED (${outcome})`,
+        settled ? `${hopCount} hop(s) — zero internet required` : 'See activity log for reason'
+    );
+    renderJourney(settled ? 'Settled ✅' : 'Rejected', settled ? 'chip-green' : 'chip-amber');
+}
+
+function renderJourney(statusText, statusClass) {
+    const el = document.getElementById('journey-steps');
+    const empty = document.getElementById('journey-empty');
+    if (empty) empty.remove();
+    el.innerHTML = journeySteps.map((s,i) => `
+        <div class="journey-step">
+            <div class="journey-icon ${s.cls}">${s.icon}</div>
+            <div class="journey-body">
+                <div class="journey-label">${s.label}</div>
+                <div class="journey-detail">${s.detail}</div>
             </div>
         </div>
+    `).join('');
+    const chip = document.getElementById('journey-status');
+    chip.textContent = statusText;
+    chip.className = 'chip ' + statusClass;
+}
 
-        <!-- ══ ACTIVITY LOG ══════════════════════════════════════ -->
-        <div id="activity" class="card section">
-            <h2>🪧 Activity Log</h2>
-            <div class="kbd-hints" aria-label="Keyboard shortcuts">
-                <span class="kbd-hint"><kbd>G</kbd> Gossip</span>
-                <span class="kbd-hint"><kbd>F</kbd> Flush</span>
-                <span class="kbd-hint"><kbd>S</kbd> Send</span>
-                <span class="kbd-hint"><kbd>R</kbd> Reset</span>
-                <span class="kbd-hint"><kbd>P</kbd> Pause</span>
-                <span class="kbd-hint"><kbd>?</kbd> Help</span>
-            </div>
-            <div id="log"></div>
-        </div>
+/* ════════════════════════════════════════════════════════════════
+   TAB SWITCHING
+   ════════════════════════════════════════════════════════════════ */
+function switchTab(name, el) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    el.classList.add('active');
+    if (name === 'visualizer') { resizeCanvas(); }
+}
 
-    </div><!-- /container -->
+/* ════════════════════════════════════════════════════════════════
+   LOGGING
+   ════════════════════════════════════════════════════════════════ */
+function addLog(msg, cls='') {
+    const el = document.getElementById('log');
+    if (!el) return;
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + cls;
+    entry.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString()}</span><span>${msg}</span>`;
+    el.insertBefore(entry, el.firstChild);
+    if (el.children.length > 200) el.removeChild(el.lastChild);
+}
 
-    <div id="toast-container" aria-live="polite"></div>
+function toast(msg) {
+    const c = document.getElementById('toast-root');
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+}
 
-    <footer class="site-footer">
-        <div class="footer-inner">
-            <span>🌐 <span class="footer-brand">TrustMesh</span> — UPI Offline Mesh Demo</span>
-            <span class="footer-badges">
-                <span class="tech-badge">Spring Boot</span>
-                <span class="tech-badge">Thymeleaf</span>
-                <span class="tech-badge">AES-256</span>
-                <span class="tech-badge">Gossip Protocol</span>
-            </span>
-            <span class="small" id="last-refreshed">Last refresh: —</span>
-        </div>
-    </footer>
+/* ════════════════════════════════════════════════════════════════
+   DATA REFRESH
+   ════════════════════════════════════════════════════════════════ */
+async function refresh() {
+    try {
+        const m = await fetch('/api/mesh/state').then(r => r.json());
+        meshState = m;
+        placeNodes();
 
-    <script>
-        /* ══ HELPERS ════════════════════════════════════════════ */
-        function log(msg) {
-            const el = document.getElementById('log');
-            if (!el) return;
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.innerHTML = '<span class="log-time">[' + new Date().toLocaleTimeString() + ']</span> ' + msg;
-            el.insertBefore(entry, el.firstChild);
-            if (el.children.length > 100) el.removeChild(el.lastChild);
+        // Update chips
+        const total = m.devices.reduce((s,d)=>s+d.packetCount,0);
+        document.getElementById('chip-packets').textContent = total + ' packet' + (total===1?'':'s') + ' in mesh';
+        document.getElementById('chip-devices').textContent = m.devices.length + ' devices';
+        document.getElementById('sm-packets').textContent = total;
+        document.getElementById('sm-accounts') && (document.getElementById('sm-accounts').textContent = m.devices.length);
+
+        // Devices card in ledger
+        document.getElementById('devices-table-body').innerHTML = m.devices.map(d => `
+            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <span style="font-size:12px;font-weight:600">${d.deviceId}</span>
+                    <span class="badge ${d.hasInternet?'badge-settled':'badge-rejected'}" style="font-size:9px">
+                        ${d.hasInternet ? '🌐 4G' : '📵 Offline'}
+                    </span>
+                </div>
+                <div style="font-size:11px;color:var(--text2)">${d.packetCount} packet(s)</div>
+                ${d.packetIds.map(id=>`<div class="mono" style="font-size:9px;margin-top:4px">${id.substring(0,16)}…</div>`).join('')}
+            </div>`).join('');
+
+        document.getElementById('cacheInfo').textContent = `Idempotency cache: ${m.idempotencyCacheSize} entries`;
+
+        // Accounts
+        const accs = await fetch('/api/accounts').then(r=>r.json()).catch(()=>[]);
+        const accArr = Array.isArray(accs) ? accs : [];
+        document.querySelector('#accounts-table tbody').innerHTML = accArr.map(a=>`
+            <tr>
+                <td class="mono">${a.vpa}</td>
+                <td>${a.holderName}</td>
+                <td style="font-weight:700;color:var(--green2)">₹${parseFloat(a.balance).toFixed(2)}</td>
+            </tr>`).join('');
+        document.getElementById('sm-accounts').textContent = accArr.length;
+
+        const sS = document.getElementById('senderVpa'), rS = document.getElementById('receiverVpa');
+        if (sS.options.length !== accArr.length && accArr.length > 0) {
+            const cs = sS.value, cr = rS.value;
+            sS.innerHTML=''; rS.innerHTML='';
+            accArr.forEach(a=>{ sS.add(new Option(a.vpa,a.vpa)); rS.add(new Option(a.vpa,a.vpa)); });
+            if (cs) sS.value=cs; if (cr) rS.value=cr;
+            else if (accArr.length>1) rS.selectedIndex=1;
         }
-        function logError(context, err) {
-            log(`❌ <span style="color:var(--danger-light)">${context} failed: ${err.message || err}</span>`);
+
+        // Transactions
+        const txs = await fetch('/api/transactions').then(r=>r.json()).catch(()=>[]);
+        const txArr = Array.isArray(txs) ? txs : [];
+        const settled = txArr.filter(t=>t.status==='SETTLED').length;
+        document.getElementById('sm-settled').textContent = settled;
+        document.querySelector('#tx-table tbody').innerHTML = txArr.map(t=>`
+            <tr>
+                <td class="mono" style="font-size:10px">#${t.id}</td>
+                <td style="font-size:11px">${t.senderVpa} → ${t.receiverVpa}</td>
+                <td style="font-weight:700;color:var(--green2)">₹${parseFloat(t.amount).toFixed(2)}</td>
+                <td><span class="badge ${t.status==='SETTLED'?'badge-settled':t.status==='CIRCUIT_OPEN'?'badge-circuit':'badge-rejected'}">${t.status}</span></td>
+                <td style="text-align:center">${t.hopCount}</td>
+                <td class="mono" style="font-size:10px">${t.bridgeNodeId}</td>
+                <td style="font-size:11px;color:var(--text2)">${new Date(t.settledAt).toLocaleTimeString()}</td>
+            </tr>`).join('');
+
+    } catch(e) { /* silent */ }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ACTIONS
+   ════════════════════════════════════════════════════════════════ */
+async function sendPacket() {
+    const btn1 = document.getElementById('btn-send');
+    const btn2 = document.getElementById('viz-btn-send');
+    [btn1,btn2].forEach(b=>b&&(b.disabled=true,b.textContent='⏳ Injecting…'));
+    try {
+        const senderVpa = document.getElementById('senderVpa').value;
+        const amount = parseFloat(document.getElementById('amount').value);
+        const body = {
+            senderVpa, receiverVpa: document.getElementById('receiverVpa').value,
+            amount, pin: document.getElementById('pin').value, ttl:5,
+            startDevice: 'phone-'+senderVpa.split('@')[0]
+        };
+        const r = await fetch('/api/demo/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+        addLog(`📤 Packet <strong>${r.packetId.substring(0,8)}</strong> encrypted & injected into mesh (TTL ${r.ttl})`);
+        addLog(`🔐 Ciphertext: <span style="color:var(--green2);font-family:monospace">${r.ciphertextPreview.substring(0,60)}…</span>`);
+        document.getElementById('ciphertext-display').textContent = r.ciphertextPreview;
+        startJourney(r.packetId, senderVpa, amount);
+        toast('📤 Packet injected!');
+        await refresh();
+        // Animate: packet appears on sender node
+        const startPos = nodePositions['phone-'+senderVpa.split('@')[0]];
+        if (startPos) gossipWave.push({x:startPos.x, y:startPos.y, r:0, color:'#f59e0b'});
+    } catch(e) { addLog(`❌ Send failed: ${e.message}`,'log-error'); }
+    finally {
+        [btn1,btn2].forEach(b=>b&&(b.disabled=false));
+        btn1&&(btn1.textContent='📤 Encrypt & Inject into Mesh');
+        btn2&&(btn2.textContent='📤 Step 1 — Inject Packet');
+    }
+}
+
+async function gossip() {
+    const btn1 = document.getElementById('btn-gossip');
+    const btn2 = document.getElementById('viz-btn-gossip');
+    [btn1,btn2].forEach(b=>b&&(b.disabled=true,b.textContent='⏳ Gossiping…'));
+    try {
+        const r = await fetch('/api/mesh/gossip',{method:'POST'}).then(r=>r.json());
+        addLog(`🔄 Gossip: <strong>${r.transfers}</strong> hop(s) — ${JSON.stringify(r.deviceCounts)}`);
+        toast(`🔄 ${r.transfers} transfer(s)`);
+        triggerGossipAnimation();
+        markJourneyGossip(r.transfers, r.deviceCounts);
+        await refresh();
+    } catch(e) { addLog(`❌ Gossip failed: ${e.message}`,'log-error'); }
+    finally {
+        [btn1,btn2].forEach(b=>b&&(b.disabled=false));
+        btn1&&(btn1.textContent='🔄 Run Gossip Round');
+        btn2&&(btn2.textContent='🔄 Step 2 — Run Gossip Round');
+    }
+}
+
+async function flushBridges() {
+    const btn1 = document.getElementById('btn-flush');
+    const btn2 = document.getElementById('viz-btn-flush');
+    [btn1,btn2].forEach(b=>b&&(b.disabled=true,b.textContent='⏳ Uploading…'));
+    try {
+        const r = await fetch('/api/mesh/flush',{method:'POST'}).then(r=>r.json());
+        addLog(`📡 <strong>${r.uploadsAttempted}</strong> bridge upload(s):`, 'log-settled');
+        r.results.forEach(res => {
+            addLog(`&nbsp;&nbsp;${res.bridgeNode} → <strong>${res.outcome}</strong>${res.reason?' ('+res.reason+')':''}`,
+                res.outcome==='SETTLED'?'log-settled':'');
+            markJourneySettled(res.outcome, res.bridgeNode, 0);
+            if (res.outcome === 'SETTLED') triggerSettleAnimation(res.bridgeNode);
+        });
+        toast(`📡 ${r.uploadsAttempted} bridge(s) uploaded`);
+        await refresh();
+    } catch(e) { addLog(`❌ Flush failed: ${e.message}`,'log-error'); }
+    finally {
+        [btn1,btn2].forEach(b=>b&&(b.disabled=false));
+        btn1&&(btn1.textContent='📡 Bridges Upload to Backend');
+        btn2&&(btn2.textContent='📡 Step 3 — Bridge Upload → Settle');
+    }
+}
+
+async function resetMesh() {
+    try {
+        await fetch('/api/mesh/reset',{method:'POST'});
+        addLog('🗑 Mesh + idempotency cache cleared');
+        toast('🗑 Reset!');
+        journeySteps=[]; journeyPacketId=null;
+        document.getElementById('journey-steps').innerHTML =
+            '<div id="journey-empty" style="text-align:center;padding:24px 0;color:var(--text3);font-size:12px;line-height:2">Inject a packet to see<br>its real-time journey<br>through the mesh 📡</div>';
+        document.getElementById('journey-status').textContent = 'Waiting…';
+        document.getElementById('journey-status').className = 'chip chip-indigo';
+        await refresh();
+    } catch(e) { addLog(`❌ Reset failed: ${e.message}`,'log-error'); }
+}
+
+async function addAccount() {
+    const vpa = document.getElementById('newVpa').value.trim();
+    const holderName = document.getElementById('newName').value.trim();
+    const initialBalance = parseFloat(document.getElementById('newBalance').value)||1000;
+    if (!vpa||!holderName) { toast('⚠️ VPA and Name required!'); return; }
+    try {
+        const r = await fetch('/api/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vpa,holderName,initialBalance})});
+        const data = await r.json();
+        if (!r.ok) toast('❌ '+(data.error||'Failed'));
+        else {
+            toast('✅ Account: '+vpa);
+            addLog(`➕ New account: <strong>${vpa}</strong> (${holderName})`);
+            document.getElementById('newVpa').value='';
+            document.getElementById('newName').value='';
+            await refresh();
         }
-        function showToast(message) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.textContent = message;
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 3200);
-        }
+    } catch(e) { addLog(`❌ Add account failed: ${e.message}`,'log-error'); }
+}
 
-        /* ══ REFRESH ════════════════════════════════════════════ */
-        async function refresh() {
-            try {
-                const m = await fetch('/api/mesh/state').then(r => r.json());
-                document.getElementById('devices').innerHTML = m.devices.map(d => `
-                    <div class="device ${d.hasInternet ? 'bridge' : 'offline'}">
-                        <div class="device-header">
-                            <span class="device-name">${d.deviceId}</span>
-                            <span class="badge ${d.hasInternet ? 'badge-online' : 'badge-offline'}">
-                                ${d.hasInternet ? '🌐 4G Bridge' : '🚫 Offline'}
-                            </span>
-                        </div>
-                        <div class="device-meta">Holding <strong>${d.packetCount}</strong> packet(s)</div>
-                        <div style="margin-top:8px">${d.packetIds.map(id =>
-                            `<span class="packet-id" onclick="copyPacketId('${id}')" title="Click to copy">${id.substring(0,12)}…</span>`
-                        ).join('')}</div>
-                    </div>`).join('');
-                document.getElementById('cacheInfo').textContent = `Idempotency cache: ${m.idempotencyCacheSize} entries`;
-                document.getElementById('stat-devices').textContent = m.devices.length;
-                document.getElementById('stat-packets').textContent = m.devices.reduce((s,d) => s + d.packetCount, 0);
+async function runStressTest() {
+    const btn = document.getElementById('btn-stress');
+    btn.disabled=true; btn.textContent='⏳ Running…';
+    try {
+        const r = await fetch('/api/demo/stress-test',{method:'POST'}).then(r=>r.json());
+        document.getElementById('stress-result').innerHTML = `
+            <div class="stress-result">
+                <div style="font-weight:700;color:var(--green2);margin-bottom:10px">
+                    ✅ ${r.settled} SETTLED &nbsp;|&nbsp; 🚫 ${r.duplicateDropped} DUPLICATE_DROPPED
+                </div>
+                ${r.results.map(res=>`<div class="stress-outcome">
+                    <strong style="color:var(--text2)">${res.bridge}</strong>
+                    <span class="badge ${res.outcome==='SETTLED'?'badge-settled':'badge-rejected'}">${res.outcome}</span>
+                    ${res.reason?`<span style="font-size:11px;color:var(--text3)">(${res.reason})</span>`:''}
+                </div>`).join('')}
+                <p style="font-size:11px;color:var(--text2);margin-top:10px">${r.explanation}</p>
+            </div>`;
+        addLog(`🧪 Stress Test: <strong>${r.settled}</strong> settled, <strong>${r.duplicateDropped}</strong> dropped — idempotency ✅`,'log-settled');
+        toast('🧪 Stress test complete!');
+        await refresh();
+    } catch(e) { addLog(`❌ Stress test failed: ${e.message}`,'log-error'); }
+    finally { btn.disabled=false; btn.textContent='🧪 Run Concurrent Stress Test'; }
+}
 
-                const accsRaw = await fetch('/api/accounts').then(r => r.json());
-                const accs = Array.isArray(accsRaw) ? accsRaw : [];
-                document.querySelector('#accounts-table tbody').innerHTML = accs.map(a => `
-                    <tr>
-                        <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-mid)">${a.vpa}</td>
-                        <td style="font-weight:500">${a.holderName}</td>
-                        <td class="balance">₹${parseFloat(a.balance).toFixed(2)}</td>
-                    </tr>`).join('');
-                document.getElementById('stat-accounts').textContent = accs.length;
-
-                const senderSelect = document.getElementById('senderVpa');
-                const receiverSelect = document.getElementById('receiverVpa');
-                if (senderSelect.options.length !== accs.length && accs.length > 0) {
-                    const cs = senderSelect.value, cr = receiverSelect.value;
-                    senderSelect.innerHTML = ''; receiverSelect.innerHTML = '';
-                    accs.forEach(a => { senderSelect.add(new Option(a.vpa,a.vpa)); receiverSelect.add(new Option(a.vpa,a.vpa)); });
-                    if (cs && [...senderSelect.options].some(o=>o.value===cs)) senderSelect.value=cs;
-                    if (cr && [...receiverSelect.options].some(o=>o.value===cr)) receiverSelect.value=cr;
-                    else if (accs.length>1) receiverSelect.selectedIndex=1;
-                }
-
-                const txs = await fetch('/api/transactions').then(r => r.json());
-                document.querySelector('#tx-table tbody').innerHTML = txs.map(t => `
-                    <tr class="${t.status==='SETTLED'?'highlight-settled':''}">
-                        <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-lo)">${t.id}</td>
-                        <td style="font-size:12px">${t.senderVpa}</td>
-                        <td style="font-size:12px">${t.receiverVpa}</td>
-                        <td class="balance">₹${parseFloat(t.amount).toFixed(2)}</td>
-                        <td><span class="status-${t.status}">${t.status==='SETTLED'?'✅':'🚫'} ${t.status}</span></td>
-                        <td style="font-size:12px;color:var(--text-lo)">${t.bridgeNodeId}</td>
-                        <td style="text-align:center">${t.hopCount}</td>
-                        <td class="small">${new Date(t.settledAt).toLocaleTimeString()}</td>
-                    </tr>`).join('');
-                document.getElementById('stat-settled').textContent = txs.filter(t=>t.status==='SETTLED').length;
-
-                fetch('/api/health').then(r=>r.json()).then(()=>{
-                    const b = document.getElementById('health-badge');
-                    b.className = 'status-pill online';
-                    b.innerHTML = '<span class="status-dot"></span> Backend: UP';
-                }).catch(()=>{
-                    const b = document.getElementById('health-badge');
-                    b.className = 'status-pill offline';
-                    b.innerHTML = '<span class="status-dot"></span> Backend: DOWN';
+/* ════════════════════════════════════════════════════════════════
+   WEBSOCKET — REAL-TIME EVENTS
+   ════════════════════════════════════════════════════════════════ */
+(function initWS() {
+    try {
+        const client = new StompJs.Client({
+            webSocketFactory: () => new SockJS('/ws'),
+            reconnectDelay: 5000,
+            onConnect: () => {
+                const badge = document.getElementById('ws-badge');
+                badge.textContent = '⬤ Live'; badge.className = 'ws-badge live';
+                addLog('⚡ <strong>WebSocket connected</strong> — receiving real-time events');
+                client.subscribe('/topic/mesh-events', msg => {
+                    try { handleEvent(JSON.parse(msg.body)); refresh(); } catch(e){}
                 });
-
-                const ts = document.getElementById('last-refreshed');
-                if (ts) ts.textContent = 'Last refresh: ' + new Date().toLocaleTimeString();
-            } catch (err) { logError('Auto-refresh', err); }
-        }
-
-        /* ══ ACTIONS ════════════════════════════════════════════ */
-        async function sendPacket() {
-            const btn = document.getElementById('btn-send');
-            btn.textContent = '⏳ Injecting…'; btn.disabled = true;
-            try {
-                const senderVpa = document.getElementById('senderVpa').value;
-                const body = {
-                    senderVpa, receiverVpa: document.getElementById('receiverVpa').value,
-                    amount: parseFloat(document.getElementById('amount').value),
-                    pin: document.getElementById('pin').value, ttl: 5,
-                    startDevice: 'phone-' + senderVpa.split('@')[0]
-                };
-                const r = await fetch('/api/demo/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
-                log(`📤 Packet <strong>${r.packetId.substring(0,8)}</strong> encrypted & injected (TTL ${r.ttl})`);
-                log(`🔐 Ciphertext: <span style="color:var(--green);font-family:monospace">${r.ciphertextPreview.substring(0,60)}…</span>`);
-                document.getElementById('ciphertext-display').textContent = r.ciphertextPreview;
-                showToast('📤 Packet injected!'); refresh();
-            } catch (err) { logError('Send packet', err); }
-            finally { btn.textContent = '📤 Inject into Mesh'; btn.disabled = false; }
-        }
-
-        async function gossip() {
-            const btn = document.getElementById('btn-gossip');
-            btn.textContent = '⏳ Gossiping…'; btn.disabled = true;
-            try {
-                const r = await fetch('/api/mesh/gossip',{method:'POST'}).then(r=>r.json());
-                log(`🔄 Gossip: <strong>${r.transfers}</strong> transfer(s) — ${JSON.stringify(r.deviceCounts)}`);
-                showToast(`🔄 ${r.transfers} transfer(s)`); refresh();
-            } catch (err) { logError('Gossip', err); }
-            finally { btn.textContent = '🔄 Run Gossip Round'; btn.disabled = false; }
-        }
-
-        async function flushBridges() {
-            const btn = document.getElementById('btn-flush');
-            btn.textContent = '⏳ Uploading…'; btn.disabled = true;
-            try {
-                const r = await fetch('/api/mesh/flush',{method:'POST'}).then(r=>r.json());
-                log(`📡 <strong>${r.uploadsAttempted}</strong> bridge upload(s):`);
-                r.results.forEach(res => log(`&nbsp;&nbsp;${res.bridgeNode} → <strong>${res.outcome}</strong>${res.reason?' ('+res.reason+')':''}`));
-                showToast(`📡 ${r.uploadsAttempted} bridge(s) uploaded`); refresh();
-            } catch (err) { logError('Bridge flush', err); }
-            finally { btn.textContent = '📡 Bridges Upload to Backend'; btn.disabled = false; }
-        }
-
-        async function resetMesh() {
-            try {
-                await fetch('/api/mesh/reset',{method:'POST'});
-                log('🗑 Mesh + cache cleared'); showToast('🗑 Reset!'); refresh();
-            } catch (err) { logError('Reset', err); }
-        }
-
-        async function addAccount() {
-            const vpa = document.getElementById('newVpa').value.trim();
-            const holderName = document.getElementById('newName').value.trim();
-            const initialBalance = parseFloat(document.getElementById('newBalance').value) || 1000;
-            if (!vpa || !holderName) { showToast('⚠️ VPA and Name required!'); return; }
-            try {
-                const r = await fetch('/api/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vpa,holderName,initialBalance})});
-                const data = await r.json();
-                if (!r.ok) { showToast('❌ '+(data.error||'Failed')); }
-                else {
-                    showToast('✅ Account created: '+vpa);
-                    log('➕ New account: <strong>'+vpa+'</strong> ('+holderName+')');
-                    document.getElementById('newVpa').value=''; document.getElementById('newName').value='';
-                    refresh();
-                }
-            } catch (err) { logError('Add account', err); }
-        }
-
-        async function runStressTest() {
-            const btn = document.getElementById('btn-stress');
-            btn.textContent = '⏳ Running…'; btn.disabled = true;
-            try {
-                const r = await fetch('/api/demo/stress-test',{method:'POST'}).then(r=>r.json());
-                const outcomeHtml = r.results.map(res => `
-                    <div style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12.5px">
-                        <strong style="color:var(--text-mid)">${res.bridge}</strong>
-                        <span class="status-${res.outcome}">${res.outcome==='SETTLED'?'✅':'🚫'} ${res.outcome}</span>
-                        ${res.reason ? `<span class="small">(${res.reason})</span>` : ''}
-                    </div>`).join('');
-                document.getElementById('stress-result').innerHTML = `
-                    <div class="stress-result-card">
-                        <div style="color:var(--success-light);font-weight:700;margin-bottom:10px;font-size:13px">
-                            ✅ ${r.settled} SETTLED &nbsp;|&nbsp; 🚫 ${r.duplicateDropped} DUPLICATE_DROPPED
-                        </div>
-                        ${outcomeHtml}
-                        <p class="small" style="margin-top:10px;margin-bottom:0">${r.explanation}</p>
-                    </div>`;
-                log(`🧪 Stress Test: <strong>${r.settled}</strong> settled, <strong>${r.duplicateDropped}</strong> dropped — idempotency ✅ VERIFIED`);
-                showToast('🧪 Stress test complete!'); refresh();
-            } catch (err) { logError('Stress test', err); }
-            finally { btn.textContent = '🧪 Run Stress Test'; btn.disabled = false; }
-        }
-
-        function copyPacketId(id) {
-            navigator.clipboard.writeText(id);
-            showToast(`📋 Copied: ${id.substring(0,16)}…`);
-        }
-
-        /* ══ KEYBOARD SHORTCUTS ══════════════════════════════════ */
-        document.addEventListener('keydown', (e) => {
-            if (['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
-            switch (e.key.toLowerCase()) {
-                case 'g': gossip();       showToast('⌨️ G → Gossip'); break;
-                case 'f': flushBridges(); showToast('⌨️ F → Flush'); break;
-                case 's': sendPacket();   showToast('⌨️ S → Send'); break;
-                case 'r': if (!e.ctrlKey && !e.metaKey) { resetMesh(); showToast('⌨️ R → Reset'); } break;
-                case 'p': toggleRefresh(); break;
-                case '?': showToast('⌨️ G=Gossip  F=Flush  S=Send  R=Reset  P=Pause'); break;
+            },
+            onDisconnect: () => {
+                document.getElementById('ws-badge').textContent = '⬤ Disconnected';
+                document.getElementById('ws-badge').className = 'ws-badge';
             }
         });
+        client.activate();
+    } catch(e) {}
+})();
 
-        /* ══ AUTO-REFRESH ════════════════════════════════════════ */
-        let refreshPaused = false;
-        let refreshTimer = setInterval(refresh, 3000);
+function handleEvent(evt) {
+    switch(evt.type) {
+        case 'PACKET_SETTLED':
+            addLog(`✅ <strong>SETTLED</strong> ₹${evt.amount} — ${evt.senderVpa} → ${evt.receiverVpa} via <strong>${evt.bridgeNodeId}</strong> (${evt.hopCount} hops, tx#${evt.txId})`, 'log-settled');
+            toast(`✅ ₹${evt.amount} settled!`);
+            triggerSettleAnimation(evt.bridgeNodeId);
+            break;
+        case 'GOSSIP_ROUND':
+            if (evt.transfers>0) addLog(`🔄 Gossip: <strong>${evt.transfers}</strong> hop(s) — ${JSON.stringify(evt.deviceCounts)}`);
+            break;
+        case 'PACKET_DUPLICATE':
+            dupeCount++;
+            document.getElementById('sm-dupes').textContent = dupeCount;
+            addLog(`🚫 Duplicate dropped — ${evt.packetHash?.substring(0,12)} from ${evt.bridgeNodeId}`,'log-warn');
+            break;
+        case 'PACKET_INVALID':
+            addLog(`⚠️ Invalid packet — reason: <strong>${evt.reason}</strong>`,'log-warn');
+            break;
+        case 'BRIDGE_UPLOAD':
+            addLog(`📡 Bridge <strong>${evt.bridgeNodeId}</strong> → ${evt.outcome}`);
+            break;
+        case 'MESH_RESET':
+            addLog('🗑 Mesh reset');
+            toast('🗑 Reset!');
+            dupeCount=0; document.getElementById('sm-dupes').textContent=0;
+            break;
+    }
+}
 
-        function toggleRefresh() {
-            const btn = document.getElementById('toggle-refresh-btn');
-            if (refreshPaused) {
-                refreshTimer = setInterval(refresh, 3000);
-                btn.innerHTML = '⏸ Pause'; btn.style.cssText = '';
-                refreshPaused = false; showToast('▶️ Resumed');
-            } else {
-                clearInterval(refreshTimer);
-                btn.innerHTML = '▶️ Resume';
-                btn.style.background = 'rgba(239,68,68,0.1)';
-                btn.style.borderColor = 'rgba(239,68,68,0.3)';
-                btn.style.color = 'var(--danger-light)';
-                refreshPaused = true; showToast('⏸ Paused');
-            }
-        }
+/* ════════════════════════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+   ════════════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+    if (['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+    switch(e.key.toLowerCase()) {
+        case 'g': gossip(); break;
+        case 'f': flushBridges(); break;
+        case 's': sendPacket(); break;
+        case 'r': if (!e.ctrlKey&&!e.metaKey) resetMesh(); break;
+    }
+});
 
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) clearInterval(refreshTimer);
-            else { refresh(); refreshTimer = setInterval(refresh, 3000); }
-        });
-
-        /* ══ WEBSOCKET — REAL-TIME MESH EVENTS ════════════════════
-         *  Connects to /ws (SockJS) and subscribes to /topic/mesh-events.
-         *  Each event from the server instantly updates the activity log
-         *  without waiting for the 3-second polling cycle.
-         *  Falls back to HTTP long-poll automatically if WebSocket is blocked.
-         * ═══════════════════════════════════════════════════════════ */
-        (function initWebSocket() {
-            try {
-                const stompClient = new StompJs.Client({
-                    webSocketFactory: () => new SockJS('/ws'),
-                    reconnectDelay: 5000,
-                    onConnect: () => {
-                        const badge = document.getElementById('health-badge');
-                        if (badge) {
-                            badge.innerHTML = '<span class="status-dot"></span> Live ⚡';
-                            badge.className = 'status-pill online';
-                        }
-                        log('⚡ <strong>WebSocket connected</strong> — receiving real-time events');
-
-                        stompClient.subscribe('/topic/mesh-events', (message) => {
-                            try {
-                                const evt = JSON.parse(message.body);
-                                handleMeshEvent(evt);
-                                // Trigger a data refresh so UI stays in sync
-                                refresh();
-                            } catch (e) {
-                                // Ignore malformed events
-                            }
-                        });
-                    },
-                    onDisconnect: () => {
-                        log('🔌 WebSocket disconnected — falling back to polling');
-                    },
-                    onStompError: (frame) => {
-                        log('⚠️ STOMP error: ' + (frame.headers?.message || 'unknown'));
-                    }
-                });
-                stompClient.activate();
-            } catch (e) {
-                log('⚠️ WebSocket unavailable — using polling only');
-            }
-        })();
-
-        function handleMeshEvent(evt) {
-            const icon = evt.icon || '📡';
-            const ts   = new Date(evt.timestamp).toLocaleTimeString();
-            switch (evt.type) {
-                case 'PACKET_SETTLED':
-                    log(`${icon} <strong>SETTLED</strong> ₹${evt.amount} — ${evt.senderVpa} → ${evt.receiverVpa} via <strong>${evt.bridgeNodeId}</strong> (${evt.hopCount} hops, tx#${evt.txId})`);
-                    showToast(`✅ ₹${evt.amount} settled!`);
-                    break;
-                case 'PACKET_DUPLICATE':
-                    log(`${icon} Duplicate dropped — packet <code>${evt.packetHash}</code> from ${evt.bridgeNodeId}`);
-                    break;
-                case 'PACKET_INVALID':
-                    log(`${icon} Invalid packet — reason: <strong>${evt.reason}</strong> from ${evt.bridgeNodeId}`);
-                    break;
-                case 'GOSSIP_ROUND':
-                    if (evt.transfers > 0)
-                        log(`${icon} Gossip: <strong>${evt.transfers}</strong> hop(s) — ${JSON.stringify(evt.deviceCounts)}`);
-                    break;
-                case 'BRIDGE_UPLOAD':
-                    log(`${icon} Bridge <strong>${evt.bridgeNodeId}</strong> uploaded → ${evt.outcome}`);
-                    break;
-                case 'MESH_RESET':
-                    log(`${icon} Mesh reset — all devices cleared`);
-                    showToast('🗑 Mesh reset!');
-                    break;
-            }
-        }
-
-        refresh();
-    </script>
-
+/* ════════════════════════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════════════════════════ */
+window.addEventListener('load', async () => {
+    resizeCanvas();
+    await refresh();
+    drawFrame();
+    setInterval(refresh, 4000);
+});
+window.addEventListener('resize', resizeCanvas);
+</script>
 </body>
 </html>
