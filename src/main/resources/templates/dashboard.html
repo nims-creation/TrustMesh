@@ -1343,22 +1343,7 @@ async function refresh() {
 
         document.getElementById('cacheInfo') && (document.getElementById('cacheInfo').textContent = `Idempotency cache: ${m.idempotencyCacheSize} entries`);
 
-        // Accounts
-        const accs = await fetch('/api/accounts').then(r=>r.json()).catch(()=>[]);
-        const accArr = Array.isArray(accs) ? accs : [];
-        renderAccountCards(accArr, txArr);
-        document.getElementById('sm-accounts').textContent = accArr.length;
-
-        const sS = document.getElementById('senderVpa'), rS = document.getElementById('receiverVpa');
-        if (sS.options.length !== accArr.length && accArr.length > 0) {
-            const cs = sS.value, cr = rS.value;
-            sS.innerHTML=''; rS.innerHTML='';
-            accArr.forEach(a=>{ sS.add(new Option(a.vpa,a.vpa)); rS.add(new Option(a.vpa,a.vpa)); });
-            if (cs) sS.value=cs; if (cr) rS.value=cr;
-            else if (accArr.length>1) rS.selectedIndex=1;
-        }
-
-        // Transactions
+        // Fetch transactions FIRST (needed for mini-tx in account cards)
         const txs = await fetch('/api/transactions').then(r=>r.json()).catch(()=>[]);
         const txArr = Array.isArray(txs) ? txs : [];
         const settled = txArr.filter(t=>t.status==='SETTLED').length;
@@ -1373,6 +1358,21 @@ async function refresh() {
                 <td class="mono" style="font-size:10px">${t.bridgeNodeId}</td>
                 <td style="font-size:11px;color:var(--text2)">${new Date(t.settledAt).toLocaleTimeString()}</td>
             </tr>`).join('');
+
+        // Accounts (after txArr is ready so cards can show mini-tx)
+        const accs = await fetch('/api/accounts').then(r=>r.json()).catch(()=>[]);
+        const accArr = Array.isArray(accs) ? accs : [];
+        renderAccountCards(accArr, txArr);
+        document.getElementById('sm-accounts').textContent = accArr.length;
+
+        const sS = document.getElementById('senderVpa'), rS = document.getElementById('receiverVpa');
+        if (sS.options.length !== accArr.length && accArr.length > 0) {
+            const cs = sS.value, cr = rS.value;
+            sS.innerHTML=''; rS.innerHTML='';
+            accArr.forEach(a=>{ sS.add(new Option(a.vpa,a.vpa)); rS.add(new Option(a.vpa,a.vpa)); });
+            if (cs) sS.value=cs; if (cr) rS.value=cr;
+            else if (accArr.length>1) rS.selectedIndex=1;
+        }
 
     } catch(e) { /* silent */ }
 }
