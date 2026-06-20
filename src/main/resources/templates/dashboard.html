@@ -505,6 +505,93 @@
         }
         @media(max-width:700px) { .add-acct-form { grid-template-columns: 1fr; } }
 
+        /* ── CLOSED ACCOUNT overlay ──────────────────────────────── */
+        .acct-wrap.closed .bank-card { filter: grayscale(0.65) brightness(0.75); }
+        .acct-wrap.closed .card-actions { opacity: 0.4; pointer-events: none; }
+        .closed-overlay {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.45);
+            border-radius: inherit;
+            z-index: 10;
+        }
+        .closed-stamp {
+            border: 3px solid #ef4444;
+            color: #ef4444;
+            font-size: 18px; font-weight: 900;
+            padding: 6px 18px; border-radius: 6px;
+            letter-spacing: 4px; text-transform: uppercase;
+            transform: rotate(-12deg);
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
+        }
+        .acct-wrap.closed .mini-tx-list { opacity: 0.5; }
+        .close-acct-btn {
+            flex: 1; padding: 12px 8px;
+            border: none; background: transparent; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            font-size: 10px; font-weight: 600; color: #f87171;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            transition: background 0.2s, color 0.2s;
+            font-family: 'Inter', sans-serif;
+            border-right: 1px solid var(--border2);
+        }
+        .close-acct-btn:last-child { border-right: none; }
+        .close-acct-btn:hover { background: rgba(239,68,68,0.08); color: #fca5a5; }
+
+        /* ── CLOSE ACCOUNT MODAL (real bank confirmation UX) ─────── */
+        .modal-backdrop {
+            position: fixed; inset: 0; z-index: 9000;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+        .modal-box {
+            background: var(--bg2);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 20px; padding: 32px;
+            max-width: 440px; width: 90%;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+            animation: slideUp 0.25s cubic-bezier(.34,1.56,.64,1);
+        }
+        @keyframes slideUp { from { transform:translateY(24px);opacity:0 } to { transform:translateY(0);opacity:1 } }
+        .modal-icon { font-size: 40px; text-align: center; margin-bottom: 16px; }
+        .modal-title { font-size: 18px; font-weight: 700; color: #f87171; margin-bottom: 8px; }
+        .modal-body { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 20px; }
+        .modal-rules {
+            background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.15);
+            border-radius: 10px; padding: 12px 16px; margin-bottom: 20px;
+        }
+        .modal-rules li { font-size: 12px; color: var(--text2); margin-bottom: 4px; list-style: none; padding-left: 4px; }
+        .modal-rules li::before { content: '⚠️ '; }
+        .modal-reason-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .modal-reason-input {
+            width: 100%; padding: 10px 14px; font-size: 13px;
+            background: var(--bg3); border: 1px solid var(--border2);
+            border-radius: 10px; color: var(--text); outline: none;
+            resize: none; font-family: 'Inter', sans-serif;
+            transition: border 0.2s;
+        }
+        .modal-reason-input:focus { border-color: #f87171; box-shadow: 0 0 0 3px rgba(239,68,68,0.1); }
+        .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+        .modal-btn-cancel {
+            flex: 1; padding: 12px; border-radius: 10px;
+            background: var(--bg3); border: 1px solid var(--border2);
+            color: var(--text2); font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .modal-btn-cancel:hover { background: var(--bg); }
+        .modal-btn-close {
+            flex: 1; padding: 12px; border-radius: 10px;
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            border: none; color: white;
+            font-size: 13px; font-weight: 700;
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        .modal-btn-close:disabled { opacity: 0.5; cursor: not-allowed; }
+        .modal-btn-close:not(:disabled):hover { opacity: 0.88; }
 
         /* Cipher box */
         .cipher-box {
@@ -1009,6 +1096,7 @@
 </div><!-- /main -->
 
 <div id="toast-root"></div>
+<div id="modal-root"></div>
 
 <script>
 /* ════════════════════════════════════════════════════════════════
@@ -1488,39 +1576,48 @@ function renderAccountCards(accArr, txArr=[]) {
     }
 
     grid.innerHTML = accArr.map((a, i) => {
-        const safeId  = a.vpa.replace(/[@.]/g,'_');
-        const bal     = parseFloat(a.balance||0);
-        const balFmt  = bal.toLocaleString('en-IN', {maximumFractionDigits:2});
-        const isHidden = balanceHidden[a.vpa];
-        const gradient = CARD_GRADIENTS[i % CARD_GRADIENTS.length];
-        const isLow   = bal > 0 && bal < 500;
-        const isZero  = bal === 0;
-        const lastTxs = getLastTx(a.vpa, txArr);
-        // Masked VPA in card-number style
-        const vpaShort = a.vpa.split('@')[0].padStart(4,'*').slice(-4).toUpperCase();
-        const masked = `●●●●  ●●●●  ●●●●  ${vpaShort}`;
+        const safeId    = a.vpa.replace(/[@.]/g,'_');
+        const bal       = parseFloat(a.balance||0);
+        const balFmt    = bal.toLocaleString('en-IN', {maximumFractionDigits:2});
+        const isClosed  = a.status === 'CLOSED';
+        const gradient  = CARD_GRADIENTS[i % CARD_GRADIENTS.length];
+        const isLow     = !isClosed && bal > 0 && bal < 500;
+        const isZero    = !isClosed && bal === 0;
+        const lastTxs   = getLastTx(a.vpa, txArr);
+        const acctTypes = ['Savings Account','Current Account','Wallet','Prepaid'];
+        const acctType  = acctTypes[i % acctTypes.length];
+        const vpaShort  = a.vpa.split('@')[0].padStart(4,'*').slice(-4).toUpperCase();
+        const masked    = `●●●●  ●●●●  ●●●●  ${vpaShort}`;
 
         const txHtml = lastTxs.length ? lastTxs.map(t => {
-            const isCredit = t.receiverVpa === a.vpa;
+            const isCredit  = t.receiverVpa === a.vpa;
+            const otherName = holderFirstName(isCredit ? t.senderVpa.split('@')[0] : t.receiverVpa.split('@')[0]);
+            const desc      = isCredit ? `📲 ${otherName} paid you` : `💸 Paid ${otherName}`;
+            const ago       = timeAgo(t.settledAt);
             return `<div class="mini-tx-item">
                 <div class="mini-tx-dot" style="background:${isCredit?'var(--green)':'#f87171'}"></div>
-                <div class="mini-tx-desc">${isCredit ? 'from '+t.senderVpa : 'to '+t.receiverVpa}</div>
-                <div class="mini-tx-amt ${isCredit?'credit':'debit'}">${isCredit?'+':'-'}₹${parseFloat(t.amount).toFixed(0)}</div>
+                <div class="mini-tx-desc">${desc}<span class="mini-tx-time">${ago}</span></div>
+                <div class="mini-tx-amt ${isCredit?'credit':'debit'}">${isCredit?'+':'-'}₹${parseFloat(t.amount).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
             </div>`;
-        }).join('') : `<div class="mini-tx-empty">No transactions yet</div>`;
+        }).join('') : `<div class="mini-tx-empty">No recent transactions</div>`;
 
         return `
-        <div class="acct-wrap">
+        <div class="acct-wrap${isClosed?' closed':''}">
             <!-- Physical card -->
-            <div class="bank-card" style="background:${gradient}">
+            <div class="bank-card" style="background:${gradient};position:relative">
+                <div class="card-scanline"></div>
+                ${isClosed ? `<div class="closed-overlay"><div class="closed-stamp">CLOSED</div></div>` : ''}
                 <div class="card-top-row">
                     <span class="card-brand">🏦 TrustMesh</span>
-                    <button class="card-eye-btn" id="eye-${safeId}" onclick="toggleBalance('${a.vpa}')">👁️</button>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span class="card-type-pill">${isClosed ? '🔴 Closed' : acctType}</span>
+                        <button class="card-eye-btn" id="eye-${safeId}" onclick="toggleBalance('${a.vpa}')">👁️</button>
+                    </div>
                 </div>
                 <div class="card-balance-section">
-                    <div class="card-bal-label">Available Balance</div>
+                    <div class="card-bal-label">${isClosed ? 'Account Closed' : 'Available Balance'}</div>
                     <div id="bal-${safeId}">
-                        <span class="card-bal-value">₹${balFmt}</span>
+                        <span class="card-bal-value" style="${isClosed?'color:rgba(255,255,255,0.4)':''}">₹${balFmt}</span>
                     </div>
                 </div>
                 <div class="card-bottom-row">
@@ -1530,34 +1627,122 @@ function renderAccountCards(accArr, txArr=[]) {
                     </div>
                     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
                         <div class="card-chip"></div>
-                        ${isLow ? `<span class="card-low-badge">⚠️ Low</span>` : ''}
-                        ${isZero ? `<span class="card-low-badge" style="border-color:rgba(239,68,68,0.5);color:#f87171;background:rgba(239,68,68,0.15)">Zero</span>` : ''}
+                        ${isLow  ? `<span class="card-low-badge">⚠️ Low</span>` : ''}
+                        ${isZero && !isClosed ? `<span class="card-low-badge" style="border-color:rgba(239,68,68,0.5);color:#f87171;background:rgba(239,68,68,0.15)">Zero</span>` : ''}
                     </div>
                 </div>
             </div>
             <!-- Quick actions -->
             <div class="card-actions">
-                <button class="card-action-btn" onclick="sendFromAccount('${a.vpa}')">
+                <button class="card-action-btn" ${isClosed?'disabled style="opacity:0.35;cursor:not-allowed"':''} onclick="sendFromAccount('${a.vpa}')">
                     <span class="card-action-icon">📤</span> Send
                 </button>
-                <button class="card-action-btn" onclick="copyUpi('${a.vpa}');toast('Share this UPI to receive money')">
+                <button class="card-action-btn" ${isClosed?'disabled style="opacity:0.35;cursor:not-allowed"':''} onclick="copyUpi('${a.vpa}');toast('Share this UPI to receive money')">
                     <span class="card-action-icon">💸</span> Request
                 </button>
-                <button class="card-action-btn" onclick="copyUpi('${a.vpa}')">
-                    <span class="card-action-icon">📋</span> Copy UPI
-                </button>
+                ${isClosed
+                    ? `<button class="close-acct-btn" style="opacity:0.4;cursor:not-allowed" disabled>
+                           <span class="card-action-icon">🔴</span> Closed
+                       </button>`
+                    : `<button class="close-acct-btn" onclick="openCloseAccountModal('${a.vpa}','${(a.holderName||a.vpa).replace(/'/g,"\\'")}',${bal})">
+                           <span class="card-action-icon">🔐</span> Close
+                       </button>`
+                }
             </div>
             <!-- Mini transaction history -->
             <div class="mini-tx-list">
                 <div class="mini-tx-header">Recent Transactions</div>
                 ${txHtml}
                 <div class="card-npci-footer">
-                    <span>UPI ✔️ Verified</span>
+                    <span>${isClosed ? '🔴 Account Closed · '+new Date(a.closedAt||'').toLocaleDateString('en-IN') : 'UPI ✔️ Verified'}</span>
                     <span>Powered by NPCI</span>
                 </div>
             </div>
         </div>`;
     }).join('');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CLOSE ACCOUNT — REAL BANK FLOW
+   ════════════════════════════════════════════════════════════════ */
+function openCloseAccountModal(vpa, holderName, balance) {
+    const root = document.getElementById('modal-root');
+    const hasBalance = balance > 0;
+    root.innerHTML = `
+    <div class="modal-backdrop" id="close-modal" onclick="e=>e.target===this&&closeModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="modal-icon">🔐</div>
+            <div class="modal-title">Close Account</div>
+            <div class="modal-body">
+                You are about to permanently close the account for
+                <strong>${holderName}</strong> (<code>${vpa}</code>).
+                This action is <strong>irreversible</strong> and follows RBI audit guidelines.
+            </div>
+            ${hasBalance ? `
+            <div class="modal-rules" style="border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.08)">
+                <li style="color:#f87171;font-weight:600">
+                    ❌ Cannot close: Account has ₹${balance.toLocaleString('en-IN')} balance
+                </li>
+                <li>Please transfer or withdraw all funds first via the Send option.</li>
+            </div>` : `
+            <div class="modal-rules">
+                <li>Account will be permanently marked CLOSED</li>
+                <li>Transaction history will be preserved for audit</li>
+                <li>No new payments can be sent or received</li>
+                <li>This cannot be undone</li>
+            </div>`}
+            <div class="modal-reason-label">Closure Reason <span style="color:#ef4444">*</span></div>
+            <textarea id="close-reason-input" class="modal-reason-input" rows="2"
+                placeholder="e.g. No longer using this account, switching to primary account..."
+                ${hasBalance ? 'disabled' : ''}></textarea>
+            <div class="modal-actions">
+                <button class="modal-btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="modal-btn-close" id="confirm-close-btn"
+                    ${hasBalance ? 'disabled title="Clear balance first"' : ''}
+                    onclick="confirmCloseAccount('${vpa}')">
+                    ${hasBalance ? '⚠️ Balance Pending' : '🔐 Close Account'}
+                </button>
+            </div>
+        </div>
+    </div>`;
+    // Enable confirm button only when reason has ≥5 chars
+    if (!hasBalance) {
+        document.getElementById('close-reason-input').addEventListener('input', function() {
+            document.getElementById('confirm-close-btn').disabled = this.value.trim().length < 5;
+        });
+        document.getElementById('confirm-close-btn').disabled = true;
+    }
+}
+
+function closeModal() {
+    document.getElementById('modal-root').innerHTML = '';
+}
+
+async function confirmCloseAccount(vpa) {
+    const reason = document.getElementById('close-reason-input')?.value?.trim();
+    if (!reason || reason.length < 5) { toast('⚠️ Please enter a reason (min 5 chars)'); return; }
+    const btn = document.getElementById('confirm-close-btn');
+    btn.disabled = true; btn.textContent = '⏳ Closing…';
+    try {
+        const r = await fetch(`/api/accounts/${encodeURIComponent(vpa)}/close`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ reason })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            toast('❌ ' + (data.error || data.violations?.join(', ') || 'Failed'));
+            btn.disabled = false; btn.textContent = '🔐 Close Account';
+        } else {
+            closeModal();
+            toast('🔐 Account closed: ' + vpa);
+            addLog(`🔐 Account <strong>${vpa}</strong> has been permanently closed. Reason: ${reason}`);
+            await refresh();
+        }
+    } catch(e) {
+        toast('❌ Error: ' + e.message);
+        btn.disabled = false; btn.textContent = '🔐 Close Account';
+    }
 }
 
 /* ════════════════════════════════════════════════════════════════

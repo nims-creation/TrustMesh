@@ -76,6 +76,16 @@ public class SettlementService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Unknown receiver VPA: " + instruction.getReceiverVpa()));
 
+        // Real-bank rule: closed accounts cannot initiate or receive transactions
+        if (!sender.isActive()) {
+            throw new IllegalArgumentException(
+                    "Sender account is closed: " + sender.getVpa());
+        }
+        if (!receiver.isActive()) {
+            throw new IllegalArgumentException(
+                    "Receiver account is closed: " + receiver.getVpa());
+        }
+
         BigDecimal amount = instruction.getAmount();
         if (amount.signum() <= 0) {
             throw new IllegalArgumentException("Amount must be positive");
@@ -86,6 +96,7 @@ public class SettlementService {
                     sender.getVpa(), sender.getBalance(), amount);
             throw new InsufficientFundsException(sender.getVpa(), sender.getBalance(), amount);
         }
+
 
         sender.setBalance(sender.getBalance().subtract(amount));
         receiver.setBalance(receiver.getBalance().add(amount));

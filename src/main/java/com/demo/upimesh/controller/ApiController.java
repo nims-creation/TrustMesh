@@ -287,10 +287,59 @@ public class ApiController {
         return ResponseEntity.ok(acc);
     }
 
+    @PostMapping("/accounts/{vpa}/close")
+    @Operation(summary = "Close Account",
+            description = """
+                Permanently closes an account (soft-delete — real-bank pattern).
+                Business rules enforced:
+                  1. Account must exist.
+                  2. Account must be ACTIVE (cannot close an already-closed account).
+                  3. Balance must be exactly ₹0 — customer must withdraw/transfer funds first.
+                Returns 422 Unprocessable Entity for business-rule violations.
+                """)
+    public ResponseEntity<?> closeAccount(@PathVariable String vpa,
+                                          @RequestBody @Valid CloseAccountRequest req) {
+        Account acc = accountRepo.findById(vpa)
+                .orElse(null);
+        if (acc == null) {
+            return ResponseEntity.notFound().build();
+        }
+        // Rule 1: Already closed?
+        if (acc.getStatus() == Account.Status.CLOSED) {
+            return ResponseEntity.unprocessableEntity()
+                    .body(Map.of("error", "Account is already closed."));
+        }
+        // Rule 2: Balance must be zero (customer must clear funds first)
+        if (acc.getBalance().signum() > 0) {
+            return ResponseEntity.unprocessableEntity().body(Map.of(
+                    "error", "Cannot close account with positive balance.",
+                    "hint", "Transfer or withdraw \u20b9" + acc.getBalance().toPlainString() + " first.",
+                    "balance", acc.getBalance()
+            ));
+        }
+        // All rules passed — soft-close the account
+        acc.setStatus(Account.Status.CLOSED);
+        acc.setClosedAt(java.time.Instant.now());
+        acc.setCloseReason(req.reason);
+        accountRepo.save(acc);
+        return ResponseEntity.ok(Map.of(
+                "message", "Account " + vpa + " has been closed.",
+                "vpa", vpa,
+                "closedAt", acc.getClosedAt().toString(),
+                "reason", acc.getCloseReason()
+        ));
+    }
+
     public static class CreateAccountRequest {
         @NotBlank public String vpa;
         @NotBlank public String holderName;
         @Positive public double initialBalance = 1000.0;
+    }
+
+    public static class CloseAccountRequest {
+        @NotBlank(message = "A closure reason is required for audit trail.")
+        @Size(min = 5, max = 500, message = "Reason must be between 5 and 500 characters.")
+        public String reason;
     }
 
     // ---------------------------------------------------------- stress test
