@@ -462,8 +462,29 @@
         .mini-tx-amt.credit { color: var(--green2); }
         .mini-tx-amt.debit  { color: #f87171; }
         .mini-tx-empty { font-size: 11px; color: var(--text3); text-align: center; padding: 8px 0; }
+        .mini-tx-desc { flex: 1; font-size: 11px; color: var(--text2); display: flex; flex-direction: column; gap: 1px; }
+        .mini-tx-time { font-size: 9px; color: var(--text3); }
+        /* Account type pill on card */
+        .card-type-pill {
+            font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.75);
+            background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+            padding: 2px 8px; border-radius: 20px; letter-spacing: 0.3px; text-transform: uppercase;
+        }
+        /* Subtle card scanline shimmer */
+        .card-scanline {
+            position: absolute; inset: 0; pointer-events: none; z-index: 0;
+            background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px);
+        }
+        /* NPCI verified footer */
+        .card-npci-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: 10px; padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            font-size: 9px; color: var(--text3); letter-spacing: 0.3px;
+        }
 
         /* Add account form card */
+
         .add-acct-card {
             background: var(--bg2);
             border: 1px dashed rgba(20,184,166,0.25);
@@ -1428,6 +1449,23 @@ function getLastTx(vpa, txArr) {
         .slice(-3).reverse();
 }
 
+/* ── Helpers ─────────────────────────────────────────── */
+function timeAgo(dateStr) {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const s = Math.floor(diff / 1000);
+    if (s < 60)  return 'just now';
+    const m = Math.floor(s / 60);
+    if (m < 60)  return m + ' min ago';
+    const h = Math.floor(m / 60);
+    if (h < 24)  return h + ' hr ago';
+    return Math.floor(h/24) + 'd ago';
+}
+
+function holderFirstName(name) {
+    return (name || '').split(' ')[0];
+}
+
 function renderAccountCards(accArr, txArr=[]) {
     window._lastAccArr = accArr; // store for toggleBalance
     const grid = document.getElementById('accounts-cards');
@@ -1513,6 +1551,10 @@ function renderAccountCards(accArr, txArr=[]) {
             <div class="mini-tx-list">
                 <div class="mini-tx-header">Recent Transactions</div>
                 ${txHtml}
+                <div class="card-npci-footer">
+                    <span>UPI ✔️ Verified</span>
+                    <span>Powered by NPCI</span>
+                </div>
             </div>
         </div>`;
     }).join('');

@@ -3,7 +3,7 @@
 <div align="center">
 
 [![Java CI with Maven](https://github.com/nims-creation/TrustMesh/actions/workflows/ci.yml/badge.svg)](https://github.com/nims-creation/TrustMesh/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/nims-creation/TrustMesh/releases)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/nims-creation/TrustMesh/releases)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.5-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-17+-orange.svg)](https://openjdk.org/)
 [![Tests](https://img.shields.io/badge/Tests-31%20passing-success.svg)](./src/test)
@@ -91,46 +91,41 @@ Current workarounds (UPI Lite, USSD-based payments) are limited in scope, amount
 
 ## 🖥 Dashboard & Visualizer
 
-The TrustMesh dashboard is a fully animated, real-time UI that visualizes the complete offline payment journey — from encryption to settlement.
+A **premium, real-time banking dashboard** built for TrustMesh — visualizing every step of the offline payment journey with the depth of a production fintech app.
 
-### 4 Dedicated Tabs
+### Mesh View — Live network graph
+
+![Mesh View](docs/screenshots/mesh-view.png)
+
+> Animated canvas graph — phones as nodes, encrypted packets flying between them in real time. 4G bridge node shown with a purple pulsing ring; settled payment triggers a green burst animation.
+
+### Demo — Step-by-step payment flow
+
+![Demo Tab](docs/screenshots/demo.png)
+
+> Click through the 3-step flow: **Inject** an AES-256-GCM encrypted packet → **Gossip** it across the mesh → **Bridge Upload** settles it on the ledger. Every step shows the ciphertext preview and hop count.
+
+### Accounts — Banking-style wallet cards
+
+![Accounts Tab](docs/screenshots/accounts.png)
+
+> Physical debit-card UI with gradient per account, balance toggle (👁️), Savings/Current badge, masked UPI number, quick Send/Request/Copy actions, and a mini recent-transactions panel with relative timestamps (`2 min ago`).
+
+### Ledger — Transaction history
+
+![Ledger Tab](docs/screenshots/ledger.png)
+
+> Full transaction table with status badges (SETTLED ✅ / CIRCUIT_OPEN 🔴), hop count, bridge node, and timestamp — plus the live mesh device grid.
+
+### 4 Tabs at a Glance
 
 | Tab | What you see |
 |---|---|
-| 🗺 **Mesh View** | Animated Canvas network graph — phones as nodes, packets flying between them |
-| 🎬 **Demo** | Step-by-step numbered flow: Inject → Gossip → Bridge Upload |
-| 📜 **Ledger** | Transaction table + mesh device grid |
-| 👤 **Accounts** | GPay-style avatar cards — name, VPA, live balance |
-| ⚡ **Activity** | Real-time WebSocket event log — color-coded by event type |
-
-### Mesh Visualizer — What the interviewer sees:
-
-```
-📵 phone-alice          📵 phone-bob
-   (offline)    ──────►   (offline)
-       │                     │
-       ▼ gossip              ▼ gossip
-   📱 phone-raj         🌐 phone-bridge
-  (has packet ●1)     (4G bridge — uploads)
-                            │
-                            ▼
-                    Backend: SETTLED ✅
-```
-
-- **Purple pulsing ring** → 4G bridge node
-- **Green glow** → offline phone holding a packet  
-- **Yellow flying dot** → packet in flight between nodes
-- **Ripple wave animation** → gossip propagation in progress
-- **Green burst** → payment settled!
-
-### Packet Journey Tracker
-Right sidebar shows every lifecycle stage in real-time:
-```
-✅ Encrypted & Injected        — AES-256-GCM ciphertext ready
-✅ Gossiped — 3 hop(s)         — {phone-alice:1, phone-bob:1, phone-raj:1}
-📡 Bridge: phone-bridge        — Uploaded to backend
-✅ SETTLED on Ledger!          — 3 hops, zero internet required
-```
+| 🗺 **Mesh View** | Animated canvas graph — phones, packets, bridge node |
+| 🎬 **Demo** | Inject → Gossip → Settle step-by-step flow |
+| 📜 **Ledger** | Full TX table + mesh device grid |
+| 💳 **Accounts** | Physical debit card UI, balance toggle, mini-TX history |
+| ⚡ **Activity** | Real-time WebSocket event log |
 
 ---
 
