@@ -1743,10 +1743,10 @@ function handleEvent(evt) {
             addLog(`📡 Bridge <strong>${evt.bridgeNodeId}</strong> → ${evt.outcome}`);
             break;
         case 'MESH_RESET':
-            addLog('🗑 Mesh reset');
-            toast('🗑 Reset!');
+            addLog('🗑 Mesh reset via WebSocket sync');
             dupeCount=0; document.getElementById('sm-dupes').textContent=0;
             break;
+
     }
 }
 
