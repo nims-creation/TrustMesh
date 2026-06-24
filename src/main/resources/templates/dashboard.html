@@ -3,869 +3,546 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="TrustMesh — UPI Offline Mesh Demo. Visualize encrypted payment packets traveling through a Bluetooth mesh network without internet.">
-    <meta name="theme-color" content="#080b14">
+    <meta name="description" content="TrustMesh — Offline-First UPI Mesh Payment Engine. Send money without internet via encrypted Bluetooth mesh networking.">
+    <meta name="theme-color" content="#09090b">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>">
-    <title>TrustMesh — UPI Offline Mesh Visualizer</title>
+    <title>TrustMesh — Offline UPI Mesh Engine</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <style>
-        :root {
-            --bg:     #0b1120;
-            --bg2:    #111827;
-            --bg3:    #1a2335;
-            --border: rgba(20,184,166,0.18);
-            --border2: rgba(255,255,255,0.08);
-            --accent:  #14b8a6;
-            --accent2: #2dd4bf;
-            --accent3: #f97316;
-            --green:  #22c55e;
-            --green2: #4ade80;
-            --amber:  #f59e0b;
-            --red:    #ef4444;
-            --text:   #f0f4f8;
-            --text2:  #94a3b8;
-            --text3:  #4b6280;
-            --glow:      0 0 20px rgba(20,184,166,0.35);
-            --glow-green:0 0 20px rgba(34,197,94,0.35);
+        /* ══════════════════════════════════════════════════════════
+           DESIGN SYSTEM — TrustMesh "Startup Grade" v5
+           Palette: Deep Obsidian, Electric Emerald, Cyber Blue, Vivid Violet
+        ══════════════════════════════════════════════════════════ */
+                :root {
+            --bg:      #050505;
+            --bg2:     #111111;
+            --bg3:     #1a1a1a;
+            --bg-glass: rgba(15, 15, 15, 0.7);
+
+            --border:   rgba(255,255,255,0.06);
+            --border2:  rgba(255,255,255,0.12);
+            --border3:  rgba(255,255,255,0.20);
+
+            --primary:      #00F0FF;
+            --primary-dim:  #008f99;
+            --primary-glow: rgba(0, 240, 255, 0.3);
+            --primary-border: rgba(0, 240, 255, 0.5);
+
+            --success:      #00FF9D;
+            --success-glow: rgba(0, 255, 157, 0.25);
+            
+            --violet:       #B026FF;
+            --amber:        #FFB800;
+            --amber-glow:   rgba(255,184,0,0.15);
+
+            --red:     #FF3366;
+            --red2:    #FF4D79;
+
+            --text:    #ffffff;
+            --text2:   #e0e0e0;
+            --text3:   #a0a0a0;
+            --text4:   #666666;
+
+            --r-sm: 10px;
+            --r-md: 16px;
+            --r-lg: 20px;
+            --r-xl: 30px;
+            --shadow-glass: 0 20px 40px -10px rgba(0,0,0,0.8);
         }
+
         * { margin:0; padding:0; box-sizing:border-box; }
         html { scroll-behavior: smooth; }
+
         body {
             font-family: 'Inter', sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
             overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(176, 38, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(0, 255, 157, 0.02) 0%, transparent 60%);
+            background-attachment: fixed;
         }
 
-        /* ── NAV ─────────────────────────────────────────────────── */
-        .nav {
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-            background: rgba(8,11,20,0.85);
-            backdrop-filter: blur(16px);
+        body::after {
+            content: '';
+            position: fixed; top: -200px; left: -200px;
+            width: 700px; height: 700px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(176, 38, 255, 0.07) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+            animation: pulseGlow 12s ease-in-out infinite alternate;
+        }
+        @keyframes pulseGlow {
+            0% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+            100% { transform: translate(100px, 50px) scale(1.1); opacity: 1; }
+        }
+
+        /* ── SCROLLBAR ─────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--text4); border-radius: 4px; }
+
+        /* ── ANIMATIONS ────────────────────────────────────── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes dotPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 currentColor; }
+            50%      { transform: scale(1.3); box-shadow: 0 0 8px currentColor; }
+        }
+
+        /* ── LAYOUT ARCHITECTURE ───────────────────────────── */
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── SIDEBAR ───────────────────────────────────────── */
+        .sidebar-nav {
+            width: 280px;
+            background: rgba(5, 5, 5, 0.6);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; bottom: 0; left: 0;
+            z-index: 100;
+        }
+        .sidebar-brand {
+            padding: 28px 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px; font-weight: 800; letter-spacing: -0.5px;
+            display: flex; align-items: center; gap: 14px;
+            color: #fff;
             border-bottom: 1px solid var(--border);
-            height: 56px;
-            display: flex; align-items: center;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
         }
-        .nav-inner {
-            max-width: 1400px; width: 100%; margin: 0 auto;
-            padding: 0 24px;
-            display: flex; align-items: center; justify-content: space-between;
+        .sidebar-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--violet));
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 0 20px var(--primary-glow);
         }
-        .nav-brand {
-            font-size: 18px; font-weight: 700; letter-spacing: -0.5px;
-            display: flex; align-items: center; gap: 8px;
-            background: linear-gradient(135deg, var(--accent2), var(--accent3));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        .sidebar-menu {
+            flex: 1;
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
-        .nav-tabs {
-            display: flex; gap: 4px;
+        .sidebar-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            color: var(--text4);
+            margin-bottom: 8px;
+            padding-left: 12px;
         }
         .nav-tab {
-            padding: 6px 16px; border-radius: 8px; font-size: 13px;
-            font-weight: 500; cursor: pointer; transition: all 0.2s;
-            background: transparent; color: var(--text2); border: none;
-            font-family: 'Inter', sans-serif;
+            padding: 12px 14px;
+            border-radius: var(--r-md);
+            font-size: 14px; font-weight: 500;
+            color: var(--text2);
+            background: transparent; border: none;
+            cursor: pointer; text-align: left;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; align-items: center; gap: 12px;
+            font-family: inherit;
         }
-        .nav-tab:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-        .nav-tab.active { background: rgba(20,184,166,0.12); color: var(--accent2); border-bottom: 2px solid var(--accent); }
-        .nav-right { display: flex; align-items: center; gap: 12px; }
-        .ws-badge {
-            font-size: 11px; padding: 3px 10px; border-radius: 20px;
-            font-weight: 600; letter-spacing: 0.3px;
-            background: rgba(239,68,68,0.1); color: #f87171;
-            border: 1px solid rgba(239,68,68,0.2);
-            transition: all 0.4s;
+        .nav-tab .tab-icon {
+            font-size: 18px;
+            opacity: 0.7;
+            transition: transform 0.2s;
         }
-        .ws-badge.live {
-            background: rgba(34,197,94,0.1); color: var(--green2);
-            border-color: rgba(34,197,94,0.2);
+        .nav-tab:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.04);
+        }
+        .nav-tab:hover .tab-icon {
+            opacity: 1; transform: scale(1.1);
+        }
+        .nav-tab.active {
+            color: #fff;
+            background: var(--primary-glow);
+            box-shadow: inset 2px 0 0 var(--primary);
+            font-weight: 600;
+        }
+        .nav-tab.active .tab-icon {
+            opacity: 1;
+        }
+        .sidebar-bottom {
+            padding: 24px;
+            border-top: 1px solid var(--border);
         }
 
-        /* ── MAIN LAYOUT ─────────────────────────────────────────── */
-        .main { max-width: 1400px; margin: 0 auto; padding: 72px 24px 40px; }
+        /* ── MAIN CONTENT ──────────────────────────────────── */
+        .main-content {
+            flex: 1;
+            margin-left: 280px; /* Offset for fixed sidebar */
+            padding: 40px 48px;
+            max-width: 1300px;
+            min-width: 0;
+            width: calc(100% - 280px);
+        }
 
-        /* ── TABS ────────────────────────────────────────────────── */
-        .tab-panel { display: none; }
+        /* ── TABS ──────────────────────────────────────────── */
+        .tab-panel { display: none; animation: fadeUp 0.4s ease forwards; }
         .tab-panel.active { display: block; }
 
-        /* ══ TAB 1: VISUALIZER ═══════════════════════════════════════ */
-        .visualizer-grid {
-            display: grid;
-            grid-template-columns: 1fr 340px;
-            gap: 20px;
-            min-height: calc(100vh - 130px);
+        /* ── TYPOGRAPHY ────────────────────────────────────── */
+        .section-header { margin-bottom: 32px; }
+        .section-title { 
+            font-family: 'Outfit', sans-serif;
+            font-size: 32px; font-weight: 700; color: #fff; 
+            letter-spacing: -0.5px; margin-bottom: 8px;
         }
-        .canvas-card {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            overflow: hidden;
-            position: relative;
-        }
-        .canvas-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .canvas-title { font-size: 14px; font-weight: 600; color: var(--text); }
-        .canvas-subtitle { font-size: 11px; color: var(--text2); margin-top: 2px; }
-        #mesh-canvas {
-            width: 100%; display: block;
-            background: radial-gradient(ellipse at 50% 40%, rgba(20,184,166,0.04) 0%, transparent 70%);
-        }
-        .canvas-legend {
-            position: absolute; bottom: 16px; left: 20px;
-            display: flex; gap: 16px;
-        }
-        .legend-item {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 11px; color: var(--text2);
-        }
-        .legend-dot {
-            width: 10px; height: 10px; border-radius: 50%;
-        }
+        .section-subtitle { font-size: 15px; color: var(--text3); }
 
-        /* Sidebar */
-        .sidebar { display: flex; flex-direction: column; gap: 16px; }
-
-        /* Journey Tracker */
-        .journey-card {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 20px;
-            flex: 1;
+        /* ── CARDS & GLASSMORPHISM ─────────────────────────── */
+        .card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border2);
+            border-radius: var(--r-xl);
+            padding: 32px;
+            transition: border-color 0.4s, transform 0.4s, box-shadow 0.4s;
+            position: relative; overflow: hidden;
+            box-shadow: var(--shadow-glass);
+            /* Transform style for vanilla-tilt */
+            transform-style: preserve-3d;
         }
-        .journey-title {
-            font-size: 13px; font-weight: 600; color: var(--text);
-            margin-bottom: 16px;
+        .card::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
+            pointer-events: none;
+            border-radius: inherit;
+        }
+        .card:hover {
+            border-color: var(--border3);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 20px var(--primary-glow);
+        }
+        .card > * { transform: translateZ(20px); }
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px; font-weight: 600; margin-bottom: 8px;
+            color: #fff; display: flex; align-items: center; gap: 10px;
+        }
+        .card-subtitle { font-size: 13px; color: var(--text3); margin-bottom: 24px; line-height: 1.6; }
+
+        /* ── BUTTONS ───────────────────────────────────────── */
+        .btn {
+            padding: 14px 24px; border-radius: var(--r-md);
+            font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600;
+            cursor: pointer; border: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+            position: relative; overflow: hidden;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        .btn::before {
+            content: ''; position: absolute; top:0; left:-100%; width:100%; height:100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: all 0.5s ease;
+        }
+        .btn:hover::before { left: 100%; }
+        .btn:active { transform: scale(0.95); }
+        
+        .btn-primary {
+            background: var(--primary); color: #000;
+            box-shadow: 0 0 20px var(--primary-glow), inset 0 -2px 0 rgba(0,0,0,0.2);
+        }
+        .btn-primary:hover { background: #00faff; box-shadow: 0 0 30px var(--primary-border), inset 0 -2px 0 rgba(0,0,0,0.1); color: #000;}
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+        
+        .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border2); }
+        .btn-secondary:hover { background: #222; border-color: var(--primary-border); color: #fff; box-shadow: 0 0 15px var(--primary-glow); }
+        
+        .btn-success { background: var(--success); color: #000; box-shadow: 0 0 20px var(--success-glow); }
+        .btn-success:hover { background: #33ffb8; color: #000; box-shadow: 0 0 30px rgba(0,255,157,0.4); }
+        .btn-danger { background: rgba(239,68,68,0.1); color: var(--red2); border: 1px solid rgba(239,68,68,0.2); }
+        .btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+        /* ── FORMS ─────────────────────────────────────────── */
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-input {
+            width: 100%; background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border2); border-radius: var(--r-md);
+            color: #fff; padding: 16px 18px; font-family: 'Inter', sans-serif;
+            font-size: 15px; outline: none; transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+        .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-glow), inset 0 0 10px rgba(0,240,255,0.1); background: rgba(0,0,0,0.6); transform: translateY(-2px); }
+        
+        /* ── BADGES & CHIPS ────────────────────────────────── */
+        .chip {
+            display: inline-flex; align-items: center; padding: 6px 12px;
+            border-radius: 100px; font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace;
+        }
+        .chip-green { background: rgba(16,185,129,0.1); color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
+        .chip-amber { background: var(--amber-glow); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+        .chip-red   { background: rgba(239,68,68,0.1); color: var(--red2); border: 1px solid rgba(239,68,68,0.2); }
+
+        .badge {
+            padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .badge-settled { background: rgba(16,185,129,0.15); color: var(--success); }
+        .badge-rejected { background: rgba(239,68,68,0.15); color: var(--red2); }
+        .badge-circuit { background: var(--amber-glow); color: var(--amber); }
+
+        .ws-badge {
+            font-size: 12px; padding: 6px 12px; border-radius: var(--r-md);
+            font-weight: 600;
+            background: rgba(239,68,68,0.1); color: var(--red2);
+            border: 1px solid rgba(239,68,68,0.2);
             display: flex; align-items: center; gap: 8px;
         }
-        .journey-step {
-            display: flex; gap: 12px; margin-bottom: 0;
-            position: relative;
-        }
-        .journey-step:not(:last-child)::before {
-            content: ''; position: absolute;
-            left: 11px; top: 28px; bottom: -16px;
-            width: 1px;
-            background: linear-gradient(to bottom, var(--border), transparent);
-        }
-        .journey-icon {
-            width: 24px; height: 24px; border-radius: 50%;
-            flex-shrink: 0;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 11px;
-            background: var(--bg3); border: 1px solid var(--border);
-            margin-top: 2px;
-        }
-        .journey-icon.done {
-            background: rgba(34,197,94,0.1);
-            border-color: rgba(34,197,94,0.3);
-        }
-        .journey-icon.active-step {
-            background: rgba(99,102,241,0.1);
-            border-color: rgba(99,102,241,0.4);
-            animation: pulse-border 1.5s infinite;
-        }
-        @keyframes pulse-border {
-            0%,100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.3); }
-            50%      { box-shadow: 0 0 0 6px rgba(99,102,241,0); }
-        }
-        .journey-body { padding-bottom: 16px; }
-        .journey-label {
-            font-size: 12px; font-weight: 600; color: var(--text);
-        }
-        .journey-detail {
-            font-size: 11px; color: var(--text2); margin-top: 2px;
-            font-family: 'JetBrains Mono', monospace;
-        }
-        #journey-steps { display: flex; flex-direction: column; gap: 0; }
-        #journey-empty {
-            text-align: center; padding: 32px 0;
-            color: var(--text3); font-size: 12px; line-height: 1.8;
-        }
+        .ws-badge .ws-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        .ws-badge.live { background: rgba(16,185,129,0.1); color: var(--success); border-color: rgba(16,185,129,0.2); }
+        .ws-badge.live .ws-dot { animation: dotPulse 2s ease-in-out infinite; }
 
-        /* Stats panel */
-        .stats-mini {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 16px 20px;
-        }
-        .stats-mini-title {
-            font-size: 11px; font-weight: 600; color: var(--text2);
-            text-transform: uppercase; letter-spacing: 0.8px;
-            margin-bottom: 14px;
-        }
-        .stats-mini-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-        }
-        .stat-mini {
-            background: var(--bg3);
-            border: 1px solid var(--border2);
-            border-radius: 10px;
-            padding: 12px;
-        }
-        .stat-mini-val {
-            font-size: 24px; font-weight: 700;
-            background: linear-gradient(135deg, var(--text), var(--text2));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .stat-mini-label {
-            font-size: 10px; color: var(--text3); margin-top: 2px;
-            text-transform: uppercase; letter-spacing: 0.5px;
-        }
-
-        /* Controls panel in visualizer */
-        .controls-mini {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 20px;
-        }
-        .controls-mini-title {
-            font-size: 13px; font-weight: 600; margin-bottom: 14px;
-            color: var(--text);
-        }
-        .btn-group { display: flex; flex-direction: column; gap: 8px; }
-
-        /* ── BUTTONS ─────────────────────────────────────────────── */
-        .btn {
-            padding: 10px 18px; border-radius: 10px;
-            font-family: 'Inter', sans-serif;
-            font-size: 13px; font-weight: 600;
-            cursor: pointer; border: none; transition: all 0.2s;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--accent), #0d9488);
-            color: white;
-            box-shadow: 0 4px 14px rgba(20,184,166,0.3);
-        }
-        .btn-primary:hover { box-shadow: 0 4px 20px rgba(20,184,166,0.5); transform: translateY(-1px); }
-        .btn-secondary {
-            background: var(--bg3);
-            border: 1px solid var(--border2);
-            color: var(--text2);
-        }
-        .btn-secondary:hover { border-color: var(--accent); color: var(--accent2); }
-        .btn-success {
-            background: linear-gradient(135deg, #16a34a, #15803d);
-            color: white;
-            box-shadow: 0 4px 14px rgba(22,163,74,0.3);
-        }
-        .btn-success:hover { box-shadow: 0 4px 20px rgba(22,163,74,0.5); transform: translateY(-1px); }
-        .btn-danger {
-            background: rgba(239,68,68,0.1);
-            border: 1px solid rgba(239,68,68,0.2);
-            color: #f87171;
-        }
-        .btn-danger:hover { background: rgba(239,68,68,0.15); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
-
-        /* ══ TAB 2: DEMO ═════════════════════════════════════════════ */
-        .demo-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        .card {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 24px;
-        }
-        .card-title {
-            font-size: 14px; font-weight: 700; margin-bottom: 6px;
-            color: var(--text);
-        }
-        .card-subtitle { font-size: 12px; color: var(--text2); margin-bottom: 20px; }
-
-        .step-flow {
-            display: flex; flex-direction: column; gap: 0;
-        }
-        .step {
-            display: flex; gap: 16px; align-items: flex-start;
-            padding: 20px 0;
-            border-bottom: 1px solid var(--border2);
-        }
-        .step:last-child { border-bottom: none; }
-        .step-num-circle {
-            width: 32px; height: 32px; border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent), #0d9488);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 13px; font-weight: 700; flex-shrink: 0;
-            box-shadow: 0 0 12px rgba(20,184,166,0.4);
-        }
-        .step-content { flex: 1; }
-        .step-label {
-            font-size: 13px; font-weight: 600; margin-bottom: 12px;
-            color: var(--text);
-        }
-        .form-row {
-            display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-        }
-        .form-field { display: flex; flex-direction: column; gap: 4px; }
-        .form-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
-        select, input[type="number"], input[type="text"] {
-            background: var(--bg3); border: 1px solid var(--border2);
-            color: var(--text); border-radius: 8px;
-            padding: 8px 12px; font-size: 13px;
-            font-family: 'Inter', sans-serif;
-            outline: none; transition: border 0.2s;
-        }
-        select:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(20,184,166,0.1); }
-
-        /* ── ACCOUNTS TAB ─────────────────────────────────────────── */
-        .accounts-page { display: flex; flex-direction: column; gap: 28px; }
-        .page-hero {
-            background: linear-gradient(135deg, rgba(20,184,166,0.08), rgba(249,115,22,0.05));
-            border: 1px solid rgba(20,184,166,0.15);
-            border-radius: 20px; padding: 28px 32px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .page-hero-title { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
-        .page-hero-sub { font-size: 13px; color: var(--text2); margin-top: 4px; }
-        .hero-stats { display: flex; gap: 32px; }
-        .hero-stat-val { font-size: 28px; font-weight: 700; color: var(--accent2); }
-        .hero-stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-
-        /* ── BANK CARD (physical card style) ────────────────────── */
+        /* ── ACCOUNTS WALLET CARDS ─────────────────────────── */
         .accounts-cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-            gap: 24px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;
         }
         .acct-wrap {
-            display: flex; flex-direction: column; gap: 0;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
-            transition: transform 0.25s, box-shadow 0.25s;
+            animation: fadeUp 0.5s ease backwards;
         }
-        .acct-wrap:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,0.45); }
-
-        /* The physical card face */
+        .acct-wrap.closed { filter: grayscale(0.8) opacity(0.7); }
         .bank-card {
-            position: relative;
-            padding: 24px 24px 20px;
-            min-height: 170px;
-            display: flex; flex-direction: column; justify-content: space-between;
-            overflow: hidden;
-        }
-        .bank-card::after {
-            content: '';
-            position: absolute;
-            top: -40px; right: -40px;
-            width: 180px; height: 180px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.07);
-            pointer-events: none;
+            padding: 24px; border-radius: 20px; color: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            display: flex; flex-direction: column; gap: 24px;
+            position: relative; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .bank-card::before {
-            content: '';
-            position: absolute;
-            bottom: -60px; left: -20px;
-            width: 220px; height: 220px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.04);
-            pointer-events: none;
+            content:''; position:absolute; inset:0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);
+            opacity: 0.5; pointer-events:none;
         }
-        .card-top-row {
-            display: flex; align-items: center; justify-content: space-between;
-            position: relative; z-index: 1;
-        }
-        .card-brand { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.8); letter-spacing: 1px; text-transform: uppercase; }
-        .card-eye-btn {
-            background: rgba(255,255,255,0.15); border: none; border-radius: 50%;
-            width: 30px; height: 30px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px; transition: background 0.2s;
-            color: white;
-        }
-        .card-eye-btn:hover { background: rgba(255,255,255,0.25); }
-        .card-chip {
-            width: 36px; height: 28px; border-radius: 5px;
-            background: linear-gradient(135deg, #d4af37, #f0d060, #b8922a);
-            display: flex; align-items: center; justify-content: center;
-            position: relative; z-index: 1;
-        }
-        .card-chip::after {
-            content: '';
-            width: 24px; height: 18px; border-radius: 3px;
-            border: 1px solid rgba(0,0,0,0.2);
-            display: block;
-        }
-        .card-balance-section { position: relative; z-index: 1; margin: 12px 0 4px; }
-        .card-bal-label { font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
-        .card-bal-value { font-size: 30px; font-weight: 700; color: white; letter-spacing: -1px; }
-        .card-bal-hidden { font-size: 24px; color: rgba(255,255,255,0.7); letter-spacing: 4px; }
-        .card-bottom-row {
-            display: flex; align-items: flex-end; justify-content: space-between;
-            position: relative; z-index: 1;
-        }
-        .card-holder-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.5px; }
-        .card-vpa-num { font-size: 10px; color: rgba(255,255,255,0.6); font-family: 'JetBrains Mono', monospace; margin-top: 3px; }
-        .card-low-badge {
-            background: rgba(245,158,11,0.25); border: 1px solid rgba(245,158,11,0.5);
-            color: #fbbf24; font-size: 9px; font-weight: 700;
-            padding: 2px 7px; border-radius: 20px; text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Quick actions bar */
-        .card-actions {
-            background: var(--bg2);
-            display: flex;
-        }
+        .card-top-row { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
+        .card-brand { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 800; letter-spacing: 1px; }
+        .card-type-pill { background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 100px; font-size: 10px; font-weight: 600; text-transform: uppercase; backdrop-filter: blur(4px); }
+        .card-balance-section { position: relative; z-index: 2; }
+        .card-bal-label { font-size: 12px; opacity: 0.8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+        .card-bal-value { font-family: 'Outfit', sans-serif; font-size: 36px; font-weight: 700; letter-spacing: -1px; }
+        .card-bottom-row { display: flex; justify-content: space-between; align-items: flex-end; position: relative; z-index: 2; }
+        .card-holder-name { font-size: 14px; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 1px; }
+        .card-vpa-num { font-family: 'JetBrains Mono', monospace; font-size: 13px; opacity: 0.8; letter-spacing: 2px; }
+        .card-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 16px; }
         .card-action-btn {
-            flex: 1; padding: 12px 8px;
-            border: none; background: transparent; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-            font-size: 10px; font-weight: 600; color: var(--text2);
-            text-transform: uppercase; letter-spacing: 0.5px;
-            transition: background 0.2s, color 0.2s;
-            font-family: 'Inter', sans-serif;
-            border-right: 1px solid var(--border2);
+            background: var(--bg3); border: 1px solid var(--border2);
+            color: var(--text); padding: 10px; border-radius: var(--r-md);
+            font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
         }
-        .card-action-btn:last-child { border-right: none; }
-        .card-action-btn:hover { background: rgba(20,184,166,0.08); color: var(--accent2); }
+        .card-action-btn:hover { background: var(--bg4); border-color: var(--primary); color: var(--primary); }
         .card-action-icon { font-size: 16px; }
+        
+        .mini-tx-list { margin-top: 16px; background: rgba(0,0,0,0.2); border-radius: var(--r-md); padding: 12px; border: 1px solid var(--border); }
+        .mini-tx-header { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); margin-bottom: 12px; font-weight: 700; }
+        .mini-tx-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .mini-tx-item:last-child { margin-bottom: 0; }
+        .mini-tx-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .mini-tx-desc { flex: 1; font-size: 12px; font-weight: 500; display: flex; flex-direction: column; }
+        .mini-tx-time { font-size: 10px; color: var(--text4); margin-top: 2px; }
+        .mini-tx-amt { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; }
+        .mini-tx-amt.credit { color: var(--success); }
+        .mini-tx-amt.debit { color: var(--text2); }
 
-        /* Mini transaction history */
-        .mini-tx-list {
-            background: var(--bg2);
-            border-top: 1px solid var(--border2);
-            padding: 12px 16px;
-        }
-        .mini-tx-header {
-            font-size: 10px; font-weight: 700; color: var(--text3);
-            text-transform: uppercase; letter-spacing: 0.5px;
-            margin-bottom: 10px;
-        }
-        .mini-tx-item {
-            display: flex; align-items: center; gap: 10px;
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-        }
-        .mini-tx-item:last-child { border-bottom: none; }
-        .mini-tx-dot {
-            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-        }
-        .mini-tx-desc { flex: 1; font-size: 11px; color: var(--text2); }
-        .mini-tx-amt { font-size: 12px; font-weight: 700; }
-        .mini-tx-amt.credit { color: var(--green2); }
-        .mini-tx-amt.debit  { color: #f87171; }
-        .mini-tx-empty { font-size: 11px; color: var(--text3); text-align: center; padding: 8px 0; }
-        .mini-tx-desc { flex: 1; font-size: 11px; color: var(--text2); display: flex; flex-direction: column; gap: 1px; }
-        .mini-tx-time { font-size: 9px; color: var(--text3); }
-        /* Account type pill on card */
-        .card-type-pill {
-            font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.75);
-            background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
-            padding: 2px 8px; border-radius: 20px; letter-spacing: 0.3px; text-transform: uppercase;
-        }
-        /* Subtle card scanline shimmer */
-        .card-scanline {
-            position: absolute; inset: 0; pointer-events: none; z-index: 0;
-            background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px);
-        }
-        /* NPCI verified footer */
-        .card-npci-footer {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-top: 10px; padding-top: 8px;
-            border-top: 1px solid rgba(255,255,255,0.06);
-            font-size: 9px; color: var(--text3); letter-spacing: 0.3px;
-        }
-
-        /* Add account form card */
-
-        .add-acct-card {
-            background: var(--bg2);
-            border: 1px dashed rgba(20,184,166,0.25);
-            border-radius: 18px; padding: 28px 32px;
-        }
-        .add-acct-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
-        .add-acct-sub { font-size: 12px; color: var(--text2); margin-bottom: 22px; }
-        .add-acct-form {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr auto;
-            gap: 14px; align-items: end;
-        }
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
-        .form-group label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
-        .form-group input {
-            padding: 10px 14px; font-size: 13px;
-            border-radius: 10px;
-        }
-        @media(max-width:700px) { .add-acct-form { grid-template-columns: 1fr; } }
-
-        /* ── CLOSED ACCOUNT overlay ──────────────────────────────── */
-        .acct-wrap.closed .bank-card { filter: grayscale(0.65) brightness(0.75); }
-        .acct-wrap.closed .card-actions { opacity: 0.4; pointer-events: none; }
-        .closed-overlay {
-            position: absolute; inset: 0;
-            display: flex; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.45);
-            border-radius: inherit;
-            z-index: 10;
-        }
-        .closed-stamp {
-            border: 3px solid #ef4444;
-            color: #ef4444;
-            font-size: 18px; font-weight: 900;
-            padding: 6px 18px; border-radius: 6px;
-            letter-spacing: 4px; text-transform: uppercase;
-            transform: rotate(-12deg);
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(2px);
-        }
-        .acct-wrap.closed .mini-tx-list { opacity: 0.5; }
-        .close-acct-btn {
-            flex: 1; padding: 12px 8px;
-            border: none; background: transparent; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-            font-size: 10px; font-weight: 600; color: #f87171;
-            text-transform: uppercase; letter-spacing: 0.5px;
-            transition: background 0.2s, color 0.2s;
-            font-family: 'Inter', sans-serif;
-            border-right: 1px solid var(--border2);
-        }
-        .close-acct-btn:last-child { border-right: none; }
-        .close-acct-btn:hover { background: rgba(239,68,68,0.08); color: #fca5a5; }
-
-        /* ── CLOSE ACCOUNT MODAL (real bank confirmation UX) ─────── */
-        .modal-backdrop {
-            position: fixed; inset: 0; z-index: 9000;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(4px);
-            display: flex; align-items: center; justify-content: center;
-            animation: fadeIn 0.2s ease;
-        }
-        @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
-        .modal-box {
-            background: var(--bg2);
-            border: 1px solid rgba(239,68,68,0.3);
-            border-radius: 20px; padding: 32px;
-            max-width: 440px; width: 90%;
-            box-shadow: 0 24px 64px rgba(0,0,0,0.6);
-            animation: slideUp 0.25s cubic-bezier(.34,1.56,.64,1);
-        }
-        @keyframes slideUp { from { transform:translateY(24px);opacity:0 } to { transform:translateY(0);opacity:1 } }
-        .modal-icon { font-size: 40px; text-align: center; margin-bottom: 16px; }
-        .modal-title { font-size: 18px; font-weight: 700; color: #f87171; margin-bottom: 8px; }
-        .modal-body { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 20px; }
-        .modal-rules {
-            background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.15);
-            border-radius: 10px; padding: 12px 16px; margin-bottom: 20px;
-        }
-        .modal-rules li { font-size: 12px; color: var(--text2); margin-bottom: 4px; list-style: none; padding-left: 4px; }
-        .modal-rules li::before { content: '⚠️ '; }
-        .modal-reason-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-        .modal-reason-input {
-            width: 100%; padding: 10px 14px; font-size: 13px;
-            background: var(--bg3); border: 1px solid var(--border2);
-            border-radius: 10px; color: var(--text); outline: none;
-            resize: none; font-family: 'Inter', sans-serif;
-            transition: border 0.2s;
-        }
-        .modal-reason-input:focus { border-color: #f87171; box-shadow: 0 0 0 3px rgba(239,68,68,0.1); }
-        .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
-        .modal-btn-cancel {
-            flex: 1; padding: 12px; border-radius: 10px;
-            background: var(--bg3); border: 1px solid var(--border2);
-            color: var(--text2); font-size: 13px; font-weight: 600;
-            cursor: pointer; transition: background 0.2s;
-        }
-        .modal-btn-cancel:hover { background: var(--bg); }
-        .modal-btn-close {
-            flex: 1; padding: 12px; border-radius: 10px;
-            background: linear-gradient(135deg, #dc2626, #991b1b);
-            border: none; color: white;
-            font-size: 13px; font-weight: 700;
-            cursor: pointer; transition: opacity 0.2s;
-        }
-        .modal-btn-close:disabled { opacity: 0.5; cursor: not-allowed; }
-        .modal-btn-close:not(:disabled):hover { opacity: 0.88; }
-
-        /* Cipher box */
-        .cipher-box {
-            background: var(--bg3);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 14px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px; color: var(--green2);
-            word-break: break-all;
-            line-height: 1.6;
-            min-height: 80px;
-            max-height: 140px;
-            overflow-y: auto;
-        }
-        .cipher-label {
-            font-size: 11px; color: var(--text2); margin-bottom: 8px;
-            display: flex; align-items: center; gap: 6px;
-        }
-
-        /* Stress result */
-        .stress-result {
-            background: var(--bg3);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 16px; margin-top: 14px;
-        }
-        .stress-outcome {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 12px; margin: 6px 0;
-        }
-
-        /* ══ TAB 3: LEDGER ═══════════════════════════════════════════ */
-        .ledger-layout { display: flex; flex-direction: column; gap: 20px; }
-        .ledger-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
-        }
-
-        table {
-            width: 100%; border-collapse: collapse;
-            font-size: 12px;
-        }
-        th {
-            text-align: left; padding: 10px 14px;
-            background: var(--bg3);
-            color: var(--text3); font-size: 10px;
-            text-transform: uppercase; letter-spacing: 0.6px;
-            border-bottom: 1px solid var(--border2);
-        }
-        td { padding: 12px 14px; border-bottom: 1px solid var(--border2); }
+        /* ── TABLES ────────────────────────────────────────── */
+        .table-wrap { overflow-x: auto; margin-top: 16px; border: 1px solid var(--border2); border-radius: var(--r-md); background: rgba(0,0,0,0.2); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); font-weight: 700; border-bottom: 1px solid var(--border2); background: rgba(255,255,255,0.02); }
+        td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); color: var(--text2); }
+        tr:last-child td { border-bottom: none; }
         tr:hover td { background: rgba(255,255,255,0.02); }
-        .badge {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 2px 8px; border-radius: 20px;
-            font-size: 10px; font-weight: 600;
-        }
-        .badge-settled { background: rgba(34,197,94,0.1); color: var(--green2); border: 1px solid rgba(34,197,94,0.2); }
-        .badge-rejected { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
-        .badge-circuit { background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
-        .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); }
+        .mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* Add account */
-        .add-account-grid {
-            display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;
-        }
-
-        /* ══ TAB 4: ACTIVITY ═════════════════════════════════════════ */
-        .activity-layout { display: flex; flex-direction: column; gap: 20px; }
+        /* ── ACTIVITY LOG ──────────────────────────────────── */
         .log-container {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 0;
-            overflow: hidden;
+            background: #000; border: 1px solid var(--border2); border-radius: var(--r-xl);
+            display: flex; flex-direction: column; height: 600px; overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
         }
         .log-header {
-            padding: 16px 20px;
+            padding: 20px 24px; border-bottom: 1px solid var(--border2); background: var(--bg2);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .log-body { flex: 1; padding: 24px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6; }
+        .log-entry { margin-bottom: 8px; padding: 8px 12px; border-radius: 6px; background: rgba(255,255,255,0.03); border-left: 2px solid var(--border3); animation: slideIn 0.2s ease; }
+        .log-time { color: var(--text4); margin-right: 12px; font-size: 11px; }
+        .log-settled { border-left-color: var(--success); background: rgba(16,185,129,0.05); color: var(--success); }
+        .log-error { border-left-color: var(--red); background: rgba(239,68,68,0.05); color: var(--red2); }
+
+        /* ── HERO METRICS ──────────────────────────────────── */
+        .hero-stats {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-bottom: 40px;
+        }
+        .stat-card {
+            background: var(--bg-glass); backdrop-filter: blur(12px);
+            border: 1px solid var(--border2); border-radius: var(--r-lg);
+            padding: 24px; display: flex; flex-direction: column; gap: 8px;
+        }
+        .stat-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); }
+        .stat-val { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 700; color: #fff; }
+
+        /* ── RESPONSIVE ────────────────────────────────────── */
+        @media(max-width: 1024px) {
+            .sidebar-nav {
+            width: 280px;
+            background: rgba(5, 5, 5, 0.6);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; bottom: 0; left: 0;
+            z-index: 100;
+        }
+        .sidebar-brand {
+            padding: 28px 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px; font-weight: 800; letter-spacing: -0.5px;
+            display: flex; align-items: center; gap: 14px;
+            color: #fff;
             border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
         }
-        .log-body { padding: 12px; max-height: calc(100vh - 280px); overflow-y: auto; }
-        .log-entry {
-            padding: 8px 12px; border-radius: 8px;
-            font-size: 12px; color: var(--text2);
-            margin-bottom: 2px; transition: background 0.2s;
-            display: flex; gap: 10px; align-items: flex-start;
+        .sidebar-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--violet));
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 0 20px var(--primary-glow);
         }
-        .log-entry:hover { background: rgba(255,255,255,0.03); }
-        .log-time { color: var(--text3); font-family: 'JetBrains Mono', monospace; font-size: 10px; flex-shrink: 0; padding-top: 1px; }
-        .log-entry.log-settled { border-left: 2px solid var(--green); }
-        .log-entry.log-error { border-left: 2px solid var(--red); }
-        .log-entry.log-warn { border-left: 2px solid var(--amber); }
-
-        /* ── TOAST ────────────────────────────────────────────────── */
-        #toast-root {
-            position: fixed; bottom: 24px; right: 24px; z-index: 999;
-            display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
-        }
-        .toast {
-            background: var(--bg3);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 12px 18px;
-            font-size: 13px; color: var(--text);
-            animation: slide-in 0.25s ease;
-            backdrop-filter: blur(16px);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-        }
-        @keyframes slide-in {
-            from { opacity:0; transform: translateX(24px); }
-            to   { opacity:1; transform: translateX(0); }
-        }
-
-        /* ── MISC ─────────────────────────────────────────────────── */
-        .section-header {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        .section-title { font-size: 18px; font-weight: 700; color: var(--text); }
-        .section-subtitle { font-size: 12px; color: var(--text2); margin-top: 2px; }
-
-        .kbd { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text3); }
-        .kbd kbd {
-            background: var(--bg3); border: 1px solid var(--border2);
-            border-radius: 4px; padding: 1px 5px; font-size: 10px;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        /* info chip */
-        .chip {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;
-        }
-        .chip-indigo { background: rgba(20,184,166,0.1);  color: var(--accent2);  border: 1px solid rgba(20,184,166,0.2);  }
-        .chip-green  { background: rgba(34,197,94,0.1);   color: var(--green2);   border: 1px solid rgba(34,197,94,0.2);   }
-        .chip-amber  { background: rgba(245,158,11,0.1);  color: #fbbf24;         border: 1px solid rgba(245,158,11,0.2);  }
-
-        @media(max-width:900px) {
-            .visualizer-grid { grid-template-columns: 1fr; }
-            .demo-layout { grid-template-columns: 1fr; }
-            .ledger-grid { grid-template-columns: 1fr; }
-            .add-account-grid { grid-template-columns: 1fr 1fr; }
+        .sidebar-menu { flex-direction: row; justify-content: space-around; padding: 8px; }
+            .sidebar-bottom { display: none; }
+            .main-content { margin-left: 0; padding: 24px 16px 80px; }
         }
     </style>
 </head>
 <body>
 
-<!-- ── NAV ──────────────────────────────────────────────────────── -->
-<nav class="nav">
-    <div class="nav-inner">
-        <div class="nav-brand">📡 TrustMesh</div>
-        <div class="nav-tabs">
-            <button class="nav-tab" onclick="switchTab('visualizer', this)" id="tab-visualizer">Mesh View</button>
-            <button class="nav-tab" onclick="switchTab('demo', this)" id="tab-demo">Demo</button>
-            <button class="nav-tab" onclick="switchTab('ledger', this)" id="tab-ledger">Ledger</button>
-            <button class="nav-tab" onclick="switchTab('accounts', this)" id="tab-accounts">Accounts</button>
-            <button class="nav-tab" onclick="switchTab('activity', this)" id="tab-activity">Activity</button>
-        </div>
-        <div class="nav-right">
-            <span id="ws-badge" class="ws-badge">⬤ Connecting…</span>
-        </div>
-    </div>
-</nav>
+<div class="app-layout">
 
-<div class="main">
+    <!-- ── SIDEBAR ──────────────────────────────────────── -->
+    <aside class="sidebar-nav">
+        <div class="sidebar-brand">
+            <div class="sidebar-icon">📡</div>
+            TrustMesh
+        </div>
+        <div class="sidebar-menu">
+            <div class="sidebar-label">Main Menu</div>
+            <button class="nav-tab active" onclick="switchTab('accounts', this)" id="tab-accounts">
+                <span class="tab-icon">💳</span> <span class="tab-text">Overview</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('demo', this)" id="tab-demo">
+                <span class="tab-icon">💸</span> <span class="tab-text">Transfer Money</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('visualizer', this)" id="tab-visualizer">
+                <span class="tab-icon">🕸️</span> <span class="tab-text">Live Network</span>
+            </button>
+            
+            <div class="sidebar-label" style="margin-top:24px">Settlement</div>
+            <button class="nav-tab" onclick="switchTab('ledger', this)" id="tab-ledger">
+                <span class="tab-icon">🏦</span> <span class="tab-text">Central Ledger</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('activity', this)" id="tab-activity">
+                <span class="tab-icon">⚡</span> <span class="tab-text">System Logs</span>
+            </button>
+        </div>
+        <div class="sidebar-bottom">
+            <div id="ws-badge" class="ws-badge"><span class="ws-dot"></span> Connecting…</div>
+        </div>
+    </aside>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- TAB 1: MESH VISUALIZER                                         -->
-<!-- ══════════════════════════════════════════════════════════════ -->
-<div id="panel-visualizer" class="tab-panel active">
+    <main class="main-content">
+
+<!-- ══ TAB 1: MESH VISUALIZER ═══════════════════════════ -->
+<div id="panel-visualizer" class="tab-panel">
     <div class="visualizer-grid">
-
-        <!-- Canvas -->
         <div class="canvas-card">
             <div class="canvas-header">
                 <div>
-                    <div class="canvas-title">🗺 Mesh Network — Live View</div>
-                    <div class="canvas-subtitle">Watch packets travel phone-to-phone in real time</div>
+                    <div class="canvas-title">Mesh Network — Live View</div>
+                    <div class="canvas-subtitle">Watch encrypted packets travel phone-to-phone in real time</div>
                 </div>
                 <div style="display:flex;gap:8px">
-                    <span class="chip chip-indigo" id="chip-packets">0 packets in mesh</span>
+                    <span class="chip chip-green" id="chip-packets">0 packets in mesh</span>
                     <span class="chip chip-amber" id="chip-devices">0 devices</span>
                 </div>
             </div>
             <canvas id="mesh-canvas" height="520"></canvas>
             <div class="canvas-legend">
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:#6366f1;box-shadow:0 0 8px #6366f1"></div>
-                    4G Bridge Node
-                </div>
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:#475569"></div>
-                    Offline Phone
-                </div>
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:#22c55e;box-shadow:0 0 8px #22c55e"></div>
-                    Active (has packet)
-                </div>
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:#f59e0b;border-radius:2px;transform:rotate(45deg)"></div>
-                    Packet in flight
-                </div>
+                <div class="legend-item"><div class="legend-dot" style="background:#6366f1;box-shadow:0 0 8px #6366f1"></div> Bridge Node (4G)</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#3f3f46"></div> Offline Phone</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--primary);box-shadow:0 0 8px var(--primary)"></div> Active (has packet)</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--amber);border-radius:2px;transform:rotate(45deg)"></div> Packet in flight</div>
             </div>
         </div>
-
         <!-- Sidebar -->
         <div class="sidebar">
-            <!-- Quick Actions -->
             <div class="controls-mini">
-                <div class="controls-mini-title">⚙️ Quick Actions</div>
+                <div class="controls-mini-title">⚡ Quick Actions</div>
                 <div class="btn-group">
-                    <button class="btn btn-primary" id="viz-btn-send" onclick="sendPacket()">
-                        📤 Step 1 — Inject Packet
-                    </button>
-                    <button class="btn btn-secondary" id="viz-btn-gossip" onclick="gossip()">
-                        🔄 Step 2 — Run Gossip Round
-                    </button>
-                    <button class="btn btn-success" id="viz-btn-flush" onclick="flushBridges()">
-                        📡 Step 3 — Bridge Upload → Settle
-                    </button>
-                    <button class="btn btn-danger" id="viz-btn-reset" onclick="resetMesh()">
-                        🗑 Reset Mesh
-                    </button>
+                    <button class="btn btn-primary" id="viz-btn-send" onclick="sendPacket()">📤 Step 1 — Inject Packet</button>
+                    <button class="btn btn-secondary" id="viz-btn-gossip" onclick="gossip()">🔄 Step 2 — Run Gossip Round</button>
+                    <button class="btn btn-success" id="viz-btn-flush" onclick="flushBridges()">📡 Step 3 — Bridge Upload → Settle</button>
+                    <button class="btn btn-danger" id="viz-btn-reset" onclick="resetMesh()">🗑 Reset Mesh</button>
                 </div>
-                <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border2);display:flex;gap:8px;flex-wrap:wrap">
+                <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
                     <div class="kbd"><kbd>G</kbd> Gossip</div>
                     <div class="kbd"><kbd>F</kbd> Flush</div>
                     <div class="kbd"><kbd>S</kbd> Send</div>
                     <div class="kbd"><kbd>R</kbd> Reset</div>
                 </div>
             </div>
-
-            <!-- Packet Journey Tracker -->
             <div class="journey-card">
                 <div class="journey-title">
-                    🛤 Packet Journey Tracker
-                    <span class="chip chip-indigo" id="journey-status">Waiting…</span>
+                    🛤 Packet Journey
+                    <span class="chip chip-green" id="journey-status">Waiting…</span>
                 </div>
                 <div id="journey-steps">
-                    <div id="journey-empty" style="text-align:center;padding:24px 0;color:var(--text3);font-size:12px;line-height:2">
+                    <div id="journey-empty" style="text-align:center;padding:24px 0;color:var(--text4);font-size:12px;line-height:2">
                         Inject a packet to see<br>its real-time journey<br>through the mesh 📡
                     </div>
                 </div>
             </div>
-
-            <!-- Stats -->
             <div class="stats-mini">
                 <div class="stats-mini-title">Live Metrics</div>
                 <div class="stats-mini-grid">
-                    <div class="stat-mini">
-                        <div class="stat-mini-val" id="sm-settled">0</div>
-                        <div class="stat-mini-label">Settled TXs</div>
-                    </div>
-                    <div class="stat-mini">
-                        <div class="stat-mini-val" id="sm-packets">0</div>
-                        <div class="stat-mini-label">In Mesh</div>
-                    </div>
-                    <div class="stat-mini">
-                        <div class="stat-mini-val" id="sm-dupes">0</div>
-                        <div class="stat-mini-label">Duplicates</div>
-                    </div>
-                    <div class="stat-mini">
-                        <div class="stat-mini-val" id="sm-accounts">0</div>
-                        <div class="stat-mini-label">Accounts</div>
-                    </div>
+                    <div class="stat-mini"><div class="stat-mini-val" id="sm-settled">0</div><div class="stat-mini-label">Settled</div></div>
+                    <div class="stat-mini"><div class="stat-mini-val" id="sm-packets">0</div><div class="stat-mini-label">In Mesh</div></div>
+                    <div class="stat-mini"><div class="stat-mini-val" id="sm-dupes">0</div><div class="stat-mini-label">Duplicates</div></div>
+                    <div class="stat-mini"><div class="stat-mini-val" id="sm-accounts">0</div><div class="stat-mini-label">Accounts</div></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- TAB 2: DEMO                                                     -->
-<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- ══ TAB 2: DEMO ═══════════════════════════════════════ -->
 <div id="panel-demo" class="tab-panel">
     <div class="section-header">
         <div>
@@ -873,143 +550,100 @@
             <div class="section-subtitle">Simulate the complete offline UPI journey step by step</div>
         </div>
     </div>
-    <div class="demo-layout">
-        <!-- Left: Steps -->
-        <div class="card">
-            <div class="step-flow">
-                <!-- Step 1 -->
-                <div class="step">
-                    <div class="step-num-circle">1</div>
-                    <div class="step-content">
-                        <div class="step-label">📤 Compose & Inject Payment <span style="font-weight:400;font-size:11px;color:var(--text2)">(simulates sender phone)</span></div>
-                        <div class="form-row">
-                            <div class="form-field">
-                                <span class="form-label">From</span>
-                                <select id="senderVpa" style="width:150px"></select>
-                            </div>
-                            <div style="color:var(--text3);font-size:18px;padding-top:14px">→</div>
-                            <div class="form-field">
-                                <span class="form-label">To</span>
-                                <select id="receiverVpa" style="width:150px"></select>
-                            </div>
-                            <div class="form-field">
-                                <span class="form-label">Amount (₹)</span>
-                                <input type="number" id="amount" value="500" style="width:90px">
-                            </div>
-                            <div class="form-field">
-                                <span class="form-label">PIN</span>
-                                <input type="text" id="pin" value="1234" maxlength="4" style="width:70px">
-                            </div>
-                        </div>
-                        <button class="btn btn-primary" style="margin-top:14px;width:100%" id="btn-send" onclick="sendPacket()">
-                            📤 Encrypt & Inject into Mesh
-                        </button>
-                    </div>
+    <div class="demo-layout" style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Step 1 -->
+        <div class="card" style="border-left: 4px solid var(--primary);">
+            <div class="card-title">1. 📤 Compose & Inject Payment</div>
+            <div class="card-subtitle">Simulates the sender's phone creating an encrypted offline transaction.</div>
+            
+            <div style="display: grid; grid-template-columns: 2fr 0.5fr 2fr 1fr 1fr; gap: 16px; align-items: flex-end; margin-bottom: 24px; background: rgba(0,0,0,0.2); padding: 24px; border-radius: var(--r-md); border: 1px solid var(--border);">
+                <div class="form-group" style="margin:0;">
+                    <label class="form-label">From (Sender)</label>
+                    <select id="senderVpa" class="form-input"></select>
                 </div>
-                <!-- Step 2 -->
-                <div class="step">
-                    <div class="step-num-circle">2</div>
-                    <div class="step-content">
-                        <div class="step-label">🔄 Gossip Round <span style="font-weight:400;font-size:11px;color:var(--text2)">packets hop device-to-device via Bluetooth</span></div>
-                        <p style="font-size:11px;color:var(--text2);margin-bottom:12px">Each gossip round, offline phones share their packets with neighbors. The more rounds, the farther the packet travels.</p>
-                        <button class="btn btn-secondary" style="width:100%" id="btn-gossip" onclick="gossip()">
-                            🔄 Run Gossip Round
-                        </button>
-                    </div>
+                <div style="text-align: center; color: var(--primary); font-size: 20px; margin-bottom: 12px; font-weight: bold;">
+                    →
                 </div>
-                <!-- Step 3 -->
-                <div class="step">
-                    <div class="step-num-circle">3</div>
-                    <div class="step-content">
-                        <div class="step-label">📡 Bridge Upload <span style="font-weight:400;font-size:11px;color:var(--text2)">bridge node finds 4G and uploads</span></div>
-                        <p style="font-size:11px;color:var(--text2);margin-bottom:12px">Multiple bridge nodes may upload simultaneously → exercises idempotency. Only 1 packet should settle.</p>
-                        <button class="btn btn-success" style="width:100%" id="btn-flush" onclick="flushBridges()">
-                            📡 Bridges Upload to Backend
-                        </button>
-                    </div>
+                <div class="form-group" style="margin:0;">
+                    <label class="form-label">To (Receiver)</label>
+                    <select id="receiverVpa" class="form-input"></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label class="form-label">Amount (₹)</label>
+                    <input type="number" id="amount" value="500" class="form-input" min="1">
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label class="form-label">PIN</label>
+                    <input type="password" id="pin" value="1234" maxlength="6" class="form-input">
                 </div>
             </div>
-            <button class="btn btn-danger" style="margin-top:8px;width:100%" onclick="resetMesh()">🗑 Reset Mesh + Cache</button>
+            <button class="btn btn-primary" style="width: 100%; height: 48px; font-size: 15px;" id="btn-send" onclick="sendPacket()">
+                🔒 Encrypt & Inject into Mesh
+            </button>
         </div>
 
-        <!-- Right: Under the Hood -->
+        <!-- Step 2 -->
+        <div class="card" style="border-left: 4px solid var(--accent);">
+            <div class="card-title">2. 🔄 Gossip Round</div>
+            <div class="card-subtitle">Offline phones share packets with neighbors via Bluetooth. The more rounds, the further the packet travels through the mesh.</div>
+            <button class="btn btn-secondary" style="width: 100%; height: 48px; font-size: 15px; border: 1px solid var(--accent); color: var(--accent);" id="btn-gossip" onclick="gossip()">
+                🔄 Run Gossip Round
+            </button>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="card" style="border-left: 4px solid #10b981;">
+            <div class="card-title">3. 📡 Bridge Upload</div>
+            <div class="card-subtitle">Bridge nodes with internet access upload the packet to the backend. Exercises idempotency—only 1 packet should settle.</div>
+            <button class="btn" style="width: 100%; height: 48px; font-size: 15px; background: #10b981; color: #000;" id="btn-flush" onclick="flushBridges()">
+                📡 Bridges Upload to Backend
+            </button>
+        </div>
+
+        <!-- Reset -->
+        <button class="btn" style="width: 100%; padding: 16px; background: transparent; border: 1px dashed #ef4444; color: #ef4444;" onclick="resetMesh()">
+            🗑 Reset Mesh + Cache
+        </button>
+    </div>
+
         <div style="display:flex;flex-direction:column;gap:16px">
-            <!-- Ciphertext -->
             <div class="card">
                 <div class="card-title">🔐 What Bridge Node Sees</div>
                 <div class="card-subtitle">Relay phone carries this opaque blob — cannot read sender, receiver, or amount</div>
                 <div class="cipher-label">
-                    <span class="chip chip-indigo">AES-256-GCM</span>
+                    <span class="chip chip-green">AES-256-GCM</span>
                     Last Encrypted Ciphertext
                 </div>
                 <div class="cipher-box" id="ciphertext-display">
-                    <span style="color:var(--text3)">Inject a packet to see the ciphertext…</span>
+                    <span style="color:var(--text4)">Inject a packet to see the ciphertext…</span>
                 </div>
             </div>
-
-            <!-- Idempotency Stress Test -->
             <div class="card">
                 <div class="card-title">⚡ Idempotency Stress Test</div>
                 <div class="card-subtitle">3 bridge nodes fire same packet simultaneously — only 1 should settle</div>
-                <button class="btn btn-secondary" style="width:100%" id="btn-stress" onclick="runStressTest()">
-                    🧪 Run Concurrent Stress Test
-                </button>
+                <button class="btn btn-secondary" style="width:100%" id="btn-stress" onclick="runStressTest()">🧪 Run Concurrent Stress Test</button>
                 <div id="stress-result"></div>
-            </div>
-
-            <!-- Add Account -->
-            <div class="card">
-                <div class="card-title">➕ Add Account</div>
-                <div class="add-account-grid">
-                    <div class="form-field">
-                        <span class="form-label">VPA</span>
-                        <input type="text" id="newVpa" placeholder="raj@demo">
-                    </div>
-                    <div class="form-field">
-                        <span class="form-label">Name</span>
-                        <input type="text" id="newName" placeholder="Raj Kumar">
-                    </div>
-                    <div class="form-field">
-                        <span class="form-label">Balance (₹)</span>
-                        <input type="number" id="newBalance" value="1000">
-                    </div>
-                    <div class="form-field">
-                        <span class="form-label">&nbsp;</span>
-                        <button class="btn btn-primary" onclick="addAccount()">Add</button>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- TAB 3: LEDGER                                                   -->
-<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- ══ TAB 3: LEDGER ═════════════════════════════════════ -->
 <div id="panel-ledger" class="tab-panel">
     <div class="ledger-layout">
         <div class="ledger-grid">
-            <!-- Transactions -->
             <div class="card">
                 <div class="card-title">📜 Transaction Ledger</div>
                 <div class="card-subtitle">All settled payments from the backend DB</div>
                 <div style="overflow-x:auto">
                     <table id="tx-table">
                         <thead>
-                            <tr>
-                                <th>ID</th><th>From → To</th><th>Amount</th>
-                                <th>Status</th><th>Hops</th><th>Bridge</th><th>Time</th>
-                            </tr>
+                            <tr><th>ID</th><th>From → To</th><th>Amount</th><th>Status</th><th>Hops</th><th>Bridge</th><th>Time</th></tr>
                         </thead>
                         <tbody></tbody>
                     </table>
                 </div>
             </div>
-
-        <!-- Account Balances moved to Accounts tab -->
         </div>
-
-        <!-- Mesh Devices -->
         <div class="card">
             <div class="card-title">Mesh Devices</div>
             <div class="card-subtitle">Phones in the mesh and packets they carry</div>
@@ -1018,73 +652,49 @@
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- TAB: ACCOUNTS                                                   -->
-<!-- ══════════════════════════════════════════════════════════════ -->
-<div id="panel-accounts" class="tab-panel">
+<!-- ══ TAB: ACCOUNTS ═════════════════════════════════════ -->
+<div id="panel-accounts" class="tab-panel active">
     <div class="accounts-page">
-
-        <!-- Hero header -->
-        <div class="page-hero">
+        <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px;">
             <div>
-                <div class="page-hero-title">Your Accounts</div>
-                <div class="page-hero-sub">Manage wallets registered in the TrustMesh network. Balances update live after every settlement.</div>
+                <div class="section-title">Your Accounts</div>
+                <div class="section-subtitle">Manage wallets registered in the TrustMesh network. Balances update live after every settlement.</div>
             </div>
-            <div class="hero-stats">
+            <div style="display: flex; gap: 40px;">
                 <div style="text-align:right">
-                    <div class="hero-stat-val" id="hero-total-accounts">0</div>
-                    <div class="hero-stat-label">Total Accounts</div>
+                    <div style="font-family: 'Outfit', sans-serif; font-size: 36px; font-weight: 700; color: #fff; line-height: 1;" id="hero-total-accounts">0</div>
+                    <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); margin-top: 8px;">Total Accounts</div>
                 </div>
                 <div style="text-align:right">
-                    <div class="hero-stat-val" id="hero-total-balance">₹0</div>
-                    <div class="hero-stat-label">Total Balance</div>
+                    <div style="font-family: 'Outfit', sans-serif; font-size: 36px; font-weight: 700; color: #fff; line-height: 1;" id="hero-total-balance">₹0</div>
+                    <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); margin-top: 8px;">Total Balance</div>
                 </div>
             </div>
         </div>
-
-        <!-- Account cards -->
         <div class="accounts-cards-grid" id="accounts-cards">
-            <div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text3);font-size:13px">
-                Loading accounts…
-            </div>
+            <div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text4);font-size:13px">Loading accounts…</div>
         </div>
-
-        <!-- Add account -->
-        <div class="add-acct-card">
-            <div class="add-acct-title">Add a new account</div>
-            <div class="add-acct-sub">Register a wallet VPA so it can send and receive payments through the mesh</div>
-            <div class="add-acct-form">
-                <div class="form-group">
-                    <label>UPI ID (VPA)</label>
-                    <input type="text" id="acct-newVpa" placeholder="raj@demo">
-                </div>
-                <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" id="acct-newName" placeholder="Raj Kumar">
-                </div>
-                <div class="form-group">
-                    <label>Opening Balance (₹)</label>
-                    <input type="number" id="acct-newBalance" value="1000">
-                </div>
-                <div class="form-group">
-                    <label>&nbsp;</label>
-                    <button class="btn btn-primary" onclick="addAccount()">Add Account</button>
-                </div>
+        <div class="card" style="margin-top: 40px; border-top: 4px solid var(--primary);">
+            <div class="card-title">✨ Add a New Account</div>
+            <div class="card-subtitle">Register a wallet VPA so it can send and receive payments through the mesh network.</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; align-items: flex-end;">
+                <div class="form-group" style="margin:0;"><label class="form-label">UPI ID (VPA)</label><input type="text" class="form-input" id="acct-newVpa" placeholder="raj@demo"></div>
+                <div class="form-group" style="margin:0;"><label class="form-label">Full Name</label><input type="text" class="form-input" id="acct-newName" placeholder="Raj Kumar"></div>
+                <div class="form-group" style="margin:0;"><label class="form-label">Opening Balance (₹)</label><input type="number" class="form-input" id="acct-newBalance" value="1000" min="0"></div>
+                <div class="form-group" style="margin:0;"><button class="btn btn-primary" style="width:100%; height:46px" onclick="addAccount()">➕ Create Wallet</button></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- TAB 4: ACTIVITY                                                 -->
-<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- ══ TAB 4: ACTIVITY ═══════════════════════════════════ -->
 <div id="panel-activity" class="tab-panel">
     <div class="activity-layout">
         <div class="log-container">
             <div class="log-header">
                 <div>
-                    <div style="font-size:14px;font-weight:700">⚡ Real-time Activity Log</div>
-                    <div style="font-size:11px;color:var(--text2);margin-top:2px">WebSocket STOMP events — server push, no polling</div>
+                    <div style="font-size:14px;font-weight:800">⚡ Real-time Activity Log</div>
+                    <div style="font-size:11px;color:var(--text3);margin-top:2px">WebSocket STOMP events — server push, no polling</div>
                 </div>
                 <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px" onclick="document.getElementById('log').innerHTML=''">Clear</button>
             </div>
@@ -1093,26 +703,26 @@
     </div>
 </div>
 
-</div><!-- /main -->
+</main></div><!-- /app-layout -->
 
 <div id="toast-root"></div>
 <div id="modal-root"></div>
 
 <script>
-/* ════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    MESH CANVAS VISUALIZER
-   ════════════════════════════════════════════════════════════════ */
+   ════════════════════════════════════════════════════════ */
 const canvas = document.getElementById('mesh-canvas');
 const ctx = canvas.getContext('2d');
 let meshState = { devices: [] };
-let animPackets = [];   // flying packet animations
-let gossipWave = [];    // ripple animations on nodes
+let animPackets = [];
+let gossipWave = [];
 let dupeCount = 0;
 
 const NODE_COLORS = {
-    offline: { fill:'#1e3a5f', stroke:'#3b82f6', glow:null },
-    bridge:  { fill:'rgba(99,102,241,0.45)', stroke:'#818cf8', glow:'rgba(99,102,241,0.7)' },
-    active:  { fill:'rgba(34,197,94,0.40)', stroke:'#4ade80', glow:'rgba(34,197,94,0.8)' }
+    offline: { fill:'#1a1a1a', stroke:'#333333', glow:null },
+    bridge:  { fill:'rgba(176,38,255,0.4)', stroke:'#B026FF', glow:'rgba(176,38,255,0.8)' },
+    active:  { fill:'rgba(0,240,255,0.35)', stroke:'#00F0FF', glow:'rgba(0,240,255,0.8)' }
 };
 
 let nodePositions = {};
@@ -1126,96 +736,85 @@ function resizeCanvas() {
     placeNodes();
 }
 
+/* Organic node placement — not a perfect circle */
 function placeNodes() {
     const devices = meshState.devices;
     if (!devices.length) return;
     const W = canvas.width, H = canvas.height;
     const cx = W / 2, cy = H / 2;
-    const r = Math.min(W, H) * 0.33;
+    const r = Math.min(W, H) * 0.32;
 
     devices.forEach((d, i) => {
         const angle = (i / devices.length) * Math.PI * 2 - Math.PI / 2;
+        // Add organic jitter based on deviceId hash
+        const jitter = (d.deviceId.charCodeAt(6) || 0) % 30 - 15;
+        const jitterY = (d.deviceId.charCodeAt(7) || 0) % 20 - 10;
+        // Bridge nodes slightly further out
+        const dist = d.hasInternet ? r * 1.15 : r;
         nodePositions[d.deviceId] = {
-            x: cx + r * Math.cos(angle),
-            y: cy + r * Math.sin(angle)
+            x: cx + dist * Math.cos(angle) + jitter,
+            y: cy + dist * Math.sin(angle) + jitterY
         };
     });
 }
 
-function drawArrow(x1,y1,x2,y2,color,alpha=0.3) {
+function drawArrow(x1,y1,x2,y2,color,alpha=0.2) {
     const dx = x2-x1, dy = y2-y1;
     const len = Math.sqrt(dx*dx+dy*dy);
     const nx = dx/len, ny = dy/len;
     const R = 28;
     const sx = x1 + nx*R, sy = y1 + ny*R;
     const ex = x2 - nx*R, ey = y2 - ny*R;
-
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([5,5]);
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,6]);
     ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
     ctx.setLineDash([]);
     ctx.restore();
 }
 
 function drawNode(x,y,label,type,pulsePhase) {
-    const R = 30;
+    const R = 28;
     const col = NODE_COLORS[type] || NODE_COLORS.offline;
-
-    // Glow halo
     if (col.glow) {
-        const g = ctx.createRadialGradient(x,y,R*0.3,x,y,R*2.5);
+        const g = ctx.createRadialGradient(x,y,R*0.3,x,y,R*2.2);
         g.addColorStop(0, col.glow);
         g.addColorStop(1,'rgba(0,0,0,0)');
-        ctx.beginPath(); ctx.arc(x,y,R*2.5,0,Math.PI*2);
+        ctx.beginPath(); ctx.arc(x,y,R*2.2,0,Math.PI*2);
         ctx.fillStyle = g; ctx.fill();
     }
-
-    // Pulse ring for active/bridge nodes
     if (type === 'active' || type === 'bridge') {
-        const pR = R + 8 + Math.sin(pulsePhase) * 6;
+        const pR = R + 6 + Math.sin(pulsePhase) * 5;
         ctx.save();
-        ctx.globalAlpha = 0.5 + 0.3 * Math.sin(pulsePhase);
+        ctx.globalAlpha = 0.4 + 0.25 * Math.sin(pulsePhase);
         ctx.beginPath(); ctx.arc(x,y,pR,0,Math.PI*2);
-        ctx.strokeStyle = col.stroke; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = col.stroke; ctx.lineWidth = 1.5; ctx.stroke();
         ctx.restore();
     }
-
-    // Node body with gradient fill
-    const bodyGrad = ctx.createRadialGradient(x-R*0.3, y-R*0.3, 2, x, y, R);
-    bodyGrad.addColorStop(0, type==='offline'?'#2d4a7a':'white');
-    bodyGrad.addColorStop(1, col.fill);
     ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2);
-    ctx.fillStyle = bodyGrad; ctx.fill();
-    ctx.strokeStyle = col.stroke; ctx.lineWidth = 2.5; ctx.stroke();
-
-    // Icon
-    ctx.font = '16px serif';
+    ctx.fillStyle = col.fill; ctx.fill();
+    ctx.strokeStyle = col.stroke; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = '15px serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';
     ctx.fillText(type === 'bridge' ? '🌐' : (type === 'active' ? '📱' : '📵'), x, y);
-
-    // Label — always bright enough to read
     const shortLabel = label.replace('phone-','');
-    ctx.font = 'bold 11px Inter, sans-serif';
-    ctx.fillStyle = type === 'offline' ? '#93c5fd' : '#f1f5f9';
-    // shadow for readability
-    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.font = '600 10px Inter, sans-serif';
+    ctx.fillStyle = type === 'offline' ? '#71717a' : '#e4e4e7';
+    ctx.shadowColor = 'rgba(0,0,0,0.9)';
     ctx.shadowBlur = 4;
     ctx.fillText(shortLabel, x, y + R + 14);
     ctx.shadowBlur = 0;
-
-    // Packet count badge
     const dev = meshState.devices.find(d => d.deviceId === label);
     if (dev && dev.packetCount > 0) {
-        ctx.beginPath(); ctx.arc(x+R-2, y-R+4, 10, 0, Math.PI*2);
+        ctx.beginPath(); ctx.arc(x+R-2, y-R+4, 9, 0, Math.PI*2);
         ctx.fillStyle = '#f59e0b';
-        ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 8;
+        ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 6;
         ctx.fill();
         ctx.shadowBlur = 0;
-        ctx.font = 'bold 10px Inter';
+        ctx.font = 'bold 9px Inter';
         ctx.fillStyle = '#000';
         ctx.fillText(dev.packetCount, x+R-2, y-R+4);
     }
@@ -1226,65 +825,46 @@ function drawFrame() {
     if (canvas.width !== lastCanvasWidth) resizeCanvas();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     phase += 0.03;
-
     const devices = meshState.devices;
     const devIds = devices.map(d => d.deviceId);
-
-    // Draw edges between all nodes
     for (let i = 0; i < devIds.length; i++) {
         for (let j = i+1; j < devIds.length; j++) {
-            const a = nodePositions[devIds[i]];
-            const b = nodePositions[devIds[j]];
-            if (a && b) drawArrow(a.x,a.y,b.x,b.y,'#3b82f6',0.25);
+            const a = nodePositions[devIds[i]], b = nodePositions[devIds[j]];
+            if (a && b) drawArrow(a.x,a.y,b.x,b.y,'#3f3f46',0.18);
         }
     }
-
-    // Draw flying packets
     animPackets = animPackets.filter(p => p.progress < 1);
     animPackets.forEach(p => {
         p.progress += 0.025;
         const t = p.progress;
         const x = p.x1 + (p.x2-p.x1)*t;
-        const y = p.y1 + (p.y2-p.y1)*t + Math.sin(t*Math.PI)*-30;
-
+        const y = p.y1 + (p.y2-p.y1)*t + Math.sin(t*Math.PI)*-25;
         ctx.save();
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = '#f59e0b';
-        ctx.beginPath();
-        ctx.arc(x, y, 7, 0, Math.PI*2);
-        ctx.fillStyle = '#f59e0b';
-        ctx.fill();
+        ctx.shadowBlur = 10; ctx.shadowColor = '#f59e0b';
+        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2);
+        ctx.fillStyle = '#f59e0b'; ctx.fill();
         ctx.restore();
-
-        // Trail
         ctx.save();
-        ctx.globalAlpha = 0.3;
-        ctx.beginPath();
-        ctx.arc(x - (p.x2-p.x1)*0.04, y - (p.y2-p.y1)*0.04, 4, 0, Math.PI*2);
-        ctx.fillStyle = '#fbbf24';
-        ctx.fill();
+        ctx.globalAlpha = 0.25;
+        ctx.beginPath(); ctx.arc(x - (p.x2-p.x1)*0.04, y - (p.y2-p.y1)*0.04, 3, 0, Math.PI*2);
+        ctx.fillStyle = '#fbbf24'; ctx.fill();
         ctx.restore();
     });
-
-    // Gossip ripple waves
-    gossipWave = gossipWave.filter(w => w.r < 80);
+    gossipWave = gossipWave.filter(w => w.r < 70);
     gossipWave.forEach(w => {
-        w.r += 1.5;
+        w.r += 1.2;
         ctx.save();
-        ctx.globalAlpha = Math.max(0, 0.6 - w.r/80);
+        ctx.globalAlpha = Math.max(0, 0.5 - w.r/70);
         ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, Math.PI*2);
-        ctx.strokeStyle = w.color || '#6366f1'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = w.color || '#6366f1'; ctx.lineWidth = 1.5; ctx.stroke();
         ctx.restore();
     });
-
-    // Draw nodes
     devices.forEach(d => {
         const pos = nodePositions[d.deviceId];
         if (!pos) return;
         const type = d.hasInternet ? 'bridge' : (d.packetCount > 0 ? 'active' : 'offline');
         drawNode(pos.x, pos.y, d.deviceId, type, phase);
     });
-
     requestAnimationFrame(drawFrame);
 }
 
@@ -1294,19 +874,14 @@ function triggerGossipAnimation() {
     devIds.forEach((id, i) => {
         setTimeout(() => {
             const pos = nodePositions[id];
-            if (pos) gossipWave.push({x:pos.x, y:pos.y, r:0, color:'#6366f1'});
+            if (pos) gossipWave.push({x:pos.x, y:pos.y, r:0, color:'#B026FF'});
         }, i * 80);
     });
-
-    // Send random packet animations between nodes
     for (let k = 0; k < Math.min(devIds.length-1, 3); k++) {
-        const from = devIds[k];
-        const to   = devIds[(k+1) % devIds.length];
+        const from = devIds[k], to = devIds[(k+1) % devIds.length];
         const pf = nodePositions[from], pt = nodePositions[to];
         if (pf && pt) {
-            setTimeout(() => {
-                animPackets.push({x1:pf.x,y1:pf.y,x2:pt.x,y2:pt.y,progress:0});
-            }, k * 150);
+            setTimeout(() => { animPackets.push({x1:pf.x,y1:pf.y,x2:pt.x,y2:pt.y,progress:0}); }, k * 150);
         }
     }
 }
@@ -1315,67 +890,45 @@ function triggerSettleAnimation(bridgeId) {
     const pos = nodePositions[bridgeId];
     if (pos) {
         for (let i = 0; i < 3; i++) {
-            setTimeout(() => {
-                gossipWave.push({x:pos.x, y:pos.y, r:0, color:'#22c55e'});
-            }, i * 120);
+            setTimeout(() => { gossipWave.push({x:pos.x, y:pos.y, r:0, color:'#00F0FF'}); }, i * 120);
         }
     }
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    PACKET JOURNEY TRACKER
-   ════════════════════════════════════════════════════════════════ */
+   ════════════════════════════════════════════════════════ */
 let journeySteps = [];
 let journeyPacketId = null;
 
 function startJourney(packetId, senderVpa, amount) {
     journeyPacketId = packetId;
     journeySteps = [];
-    addJourneyStep('done', '📤', 'Encrypted & Injected',
-        `₹${amount} from ${senderVpa} — AES-256-GCM ciphertext ready`);
-    addJourneyStep('active-step', '🔄', 'Gossiping through mesh…',
-        `Waiting for gossip rounds to propagate packet`);
+    addJourneyStep('done', '📤', 'Encrypted & Injected', `₹${amount} from ${senderVpa} — AES-256-GCM ciphertext ready`);
+    addJourneyStep('active-step', '🔄', 'Gossiping through mesh…', 'Waiting for gossip rounds to propagate packet');
     renderJourney('Gossiping…', 'chip-amber');
 }
-
-function addJourneyStep(cls, icon, label, detail) {
-    journeySteps.push({cls, icon, label, detail});
-}
-
+function addJourneyStep(cls, icon, label, detail) { journeySteps.push({cls, icon, label, detail}); }
 function markJourneyGossip(transfers, counts) {
     if (!journeyPacketId) return;
     const gossipStep = journeySteps.find(s => s.label.startsWith('Gossip'));
-    if (gossipStep) {
-        gossipStep.cls = 'done';
-        gossipStep.label = `Gossiped — ${transfers} hop(s)`;
-        gossipStep.detail = `Devices: ${JSON.stringify(counts)}`;
-    }
+    if (gossipStep) { gossipStep.cls = 'done'; gossipStep.label = `Gossiped — ${transfers} hop(s)`; gossipStep.detail = `Devices: ${JSON.stringify(counts)}`; }
     addJourneyStep('active-step', '📡', 'Bridge uploading…', 'Waiting for a bridge node to find 4G');
-    renderJourney('Bridge uploading…', 'chip-indigo');
+    renderJourney('Bridge uploading…', 'chip-green');
 }
-
 function markJourneySettled(outcome, bridgeId, hopCount) {
     if (!journeyPacketId) return;
     const uploadStep = journeySteps.find(s => s.label.startsWith('Bridge'));
-    if (uploadStep) {
-        uploadStep.cls = 'done';
-        uploadStep.label = `Bridge: ${bridgeId}`;
-        uploadStep.detail = `Uploaded to backend`;
-    }
+    if (uploadStep) { uploadStep.cls = 'done'; uploadStep.label = `Bridge: ${bridgeId}`; uploadStep.detail = 'Uploaded to backend'; }
     const settled = outcome === 'SETTLED';
-    addJourneyStep('done',
-        settled ? '✅' : '🚫',
-        settled ? 'SETTLED on Ledger!' : `REJECTED (${outcome})`,
-        settled ? `${hopCount} hop(s) — zero internet required` : 'See activity log for reason'
-    );
-    renderJourney(settled ? 'Settled ✅' : 'Rejected', settled ? 'chip-green' : 'chip-amber');
+    addJourneyStep('done', settled ? '✅' : '🚫', settled ? 'SETTLED on Ledger!' : `REJECTED (${outcome})`, settled ? `${hopCount} hop(s) — zero internet required` : 'See activity log for reason');
+    renderJourney(settled ? 'Settled ✅' : 'Rejected', settled ? 'chip-green' : 'chip-red');
 }
-
 function renderJourney(statusText, statusClass) {
     const el = document.getElementById('journey-steps');
     const empty = document.getElementById('journey-empty');
     if (empty) empty.remove();
-    el.innerHTML = journeySteps.map((s,i) => `
+    el.innerHTML = journeySteps.map(s => `
         <div class="journey-step">
             <div class="journey-icon ${s.cls}">${s.icon}</div>
             <div class="journey-body">
@@ -1389,20 +942,20 @@ function renderJourney(statusText, statusClass) {
     chip.className = 'chip ' + statusClass;
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    TAB SWITCHING
-   ════════════════════════════════════════════════════════════════ */
+   ════════════════════════════════════════════════════════ */
 function switchTab(name, el) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
     document.getElementById('panel-' + name).classList.add('active');
     el.classList.add('active');
-    if (name === 'visualizer') { resizeCanvas(); }
+    if (name === 'visualizer') resizeCanvas();
 }
 
-/* ════════════════════════════════════════════════════════════════
-   LOGGING
-   ════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════
+   LOGGING & TOAST
+   ════════════════════════════════════════════════════════ */
 function addLog(msg, cls='') {
     const el = document.getElementById('log');
     if (!el) return;
@@ -1412,47 +965,37 @@ function addLog(msg, cls='') {
     el.insertBefore(entry, el.firstChild);
     if (el.children.length > 200) el.removeChild(el.lastChild);
 }
-
 function toast(msg) {
     const c = document.getElementById('toast-root');
     const t = document.createElement('div');
     t.className = 'toast'; t.textContent = msg;
     c.appendChild(t);
-    setTimeout(() => t.remove(), 3200);
+    setTimeout(() => t.remove(), 3500);
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    DATA REFRESH
-   ════════════════════════════════════════════════════════════════ */
+   ════════════════════════════════════════════════════════ */
 async function refresh() {
     try {
         const m = await fetch('/api/mesh/state').then(r => r.json());
         meshState = m;
         placeNodes();
-
-        // Update chips
         const total = m.devices.reduce((s,d)=>s+d.packetCount,0);
         document.getElementById('chip-packets').textContent = total + ' packet' + (total===1?'':'s') + ' in mesh';
         document.getElementById('chip-devices').textContent = m.devices.length + ' devices';
         document.getElementById('sm-packets').textContent = total;
-        document.getElementById('sm-accounts') && (document.getElementById('sm-accounts').textContent = m.devices.length);
-
-        // Devices card in ledger
         document.getElementById('devices-table-body').innerHTML = m.devices.map(d => `
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-md);padding:14px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
                     <span style="font-size:12px;font-weight:600">${d.deviceId}</span>
                     <span class="badge ${d.hasInternet?'badge-settled':'badge-rejected'}" style="font-size:9px">
                         ${d.hasInternet ? '🌐 4G' : '📵 Offline'}
                     </span>
                 </div>
-                <div style="font-size:11px;color:var(--text2)">${d.packetCount} packet(s)</div>
+                <div style="font-size:11px;color:var(--text3)">${d.packetCount} packet(s)</div>
                 ${d.packetIds.map(id=>`<div class="mono" style="font-size:9px;margin-top:4px">${id.substring(0,16)}…</div>`).join('')}
             </div>`).join('');
-
-        document.getElementById('cacheInfo') && (document.getElementById('cacheInfo').textContent = `Idempotency cache: ${m.idempotencyCacheSize} entries`);
-
-        // Fetch transactions FIRST (needed for mini-tx in account cards)
         const txs = await fetch('/api/transactions').then(r=>r.json()).catch(()=>[]);
         const txArr = Array.isArray(txs) ? txs : [];
         const settled = txArr.filter(t=>t.status==='SETTLED').length;
@@ -1462,36 +1005,37 @@ async function refresh() {
             <tr>
                 <td class="mono" style="font-size:10px">#${t.id}</td>
                 <td style="font-size:11px">${t.senderVpa} → ${t.receiverVpa}</td>
-                <td style="font-weight:700;color:var(--green2)">₹${parseFloat(t.amount).toFixed(2)}</td>
+                <td style="font-weight:700;color:var(--primary)">₹${parseFloat(t.amount).toFixed(2)}</td>
                 <td><span class="badge ${t.status==='SETTLED'?'badge-settled':t.status==='CIRCUIT_OPEN'?'badge-circuit':'badge-rejected'}">${t.status}</span></td>
                 <td style="text-align:center">${t.hopCount}</td>
                 <td class="mono" style="font-size:10px">${t.bridgeNodeId}</td>
-                <td style="font-size:11px;color:var(--text2)">${new Date(t.settledAt).toLocaleTimeString()}</td>
+                <td style="font-size:11px;color:var(--text3)">${new Date(t.settledAt).toLocaleTimeString()}</td>
             </tr>`).join('');
-
-        // Accounts (after txArr is ready so cards can show mini-tx)
         const accs = await fetch('/api/accounts').then(r=>r.json()).catch(()=>[]);
         const accArr = Array.isArray(accs) ? accs : [];
         renderAccountCards(accArr, txArr);
         document.getElementById('sm-accounts').textContent = accArr.length;
-
         const sS = document.getElementById('senderVpa'), rS = document.getElementById('receiverVpa');
         if (sS.options.length !== accArr.length && accArr.length > 0) {
             const cs = sS.value, cr = rS.value;
             sS.innerHTML=''; rS.innerHTML='';
-            accArr.forEach(a=>{ sS.add(new Option(a.vpa,a.vpa)); rS.add(new Option(a.vpa,a.vpa)); });
+            accArr.filter(a => a.status !== 'CLOSED').forEach(a=>{ sS.add(new Option(a.vpa,a.vpa)); rS.add(new Option(a.vpa,a.vpa)); });
             if (cs) sS.value=cs; if (cr) rS.value=cr;
-            else if (accArr.length>1) rS.selectedIndex=1;
+            // Default to different accounts
+            if (!cr && accArr.length > 1) rS.selectedIndex = 1;
+            // Ensure sender ≠ receiver
+            if (sS.value === rS.value && rS.options.length > 1) {
+                rS.selectedIndex = (sS.selectedIndex + 1) % rS.options.length;
+            }
         }
-
     } catch(e) { console.error('[refresh] error:', e); }
 }
 
-/* ════════════════════════════════════════════════════════════════
-   ACCOUNT CARDS RENDERER (Banking style)
-   ════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════
+   ACCOUNT CARDS RENDERER
+   ════════════════════════════════════════════════════════ */
 const CARD_GRADIENTS = [
-    'linear-gradient(135deg,#0d9488,#065f46)',
+    'linear-gradient(135deg,#059669,#064e3b)',
     'linear-gradient(135deg,#7c3aed,#4c1d95)',
     'linear-gradient(135deg,#c2410c,#7c2d12)',
     'linear-gradient(135deg,#0369a1,#0c4a6e)',
@@ -1500,7 +1044,7 @@ const CARD_GRADIENTS = [
     'linear-gradient(135deg,#b45309,#78350f)',
     'linear-gradient(135deg,#6d28d9,#3b0764)',
 ];
-const balanceHidden = {}; // vpa -> bool
+const balanceHidden = {};
 
 function toggleBalance(vpa) {
     balanceHidden[vpa] = !balanceHidden[vpa];
@@ -1523,7 +1067,6 @@ function copyUpi(vpa) {
 }
 
 function sendFromAccount(vpa) {
-    // Switch to Demo tab, pre-select sender
     const demoTab = document.getElementById('tab-demo');
     if (demoTab) switchTab('demo', demoTab);
     const sel = document.getElementById('senderVpa');
@@ -1532,83 +1075,96 @@ function sendFromAccount(vpa) {
 }
 
 function getLastTx(vpa, txArr) {
-    return txArr
-        .filter(t => (t.senderVpa===vpa || t.receiverVpa===vpa) && t.status==='SETTLED')
-        .slice(-3).reverse();
+    return txArr.filter(t => (t.senderVpa===vpa || t.receiverVpa===vpa) && t.status==='SETTLED').slice(-3).reverse();
 }
 
-/* ── Helpers ─────────────────────────────────────────── */
 function timeAgo(dateStr) {
     if (!dateStr) return '';
     const diff = Date.now() - new Date(dateStr).getTime();
     const s = Math.floor(diff / 1000);
-    if (s < 60)  return 'just now';
+    if (s < 60) return 'just now';
     const m = Math.floor(s / 60);
-    if (m < 60)  return m + ' min ago';
+    if (m < 60) return m + ' min ago';
     const h = Math.floor(m / 60);
-    if (h < 24)  return h + ' hr ago';
+    if (h < 24) return h + ' hr ago';
     return Math.floor(h/24) + 'd ago';
 }
 
-function holderFirstName(name) {
-    return (name || '').split(' ')[0];
+/* SVG Sparkline generator */
+function generateSparkline(txArr, vpa) {
+    const relevant = txArr.filter(t => (t.senderVpa===vpa || t.receiverVpa===vpa) && t.status==='SETTLED').slice(-7);
+    if (relevant.length < 2) return '';
+    const values = relevant.map(t => parseFloat(t.amount));
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = max - min || 1;
+    const w = 200, h = 40, pad = 4;
+    const points = values.map((v, i) => {
+        const x = pad + (i / (values.length - 1)) * (w - pad * 2);
+        const y = h - pad - ((v - min) / range) * (h - pad * 2);
+        return `${x},${y}`;
+    });
+    const gradId = 'sg-' + vpa.replace(/[@.]/g,'');
+    return `<svg class="card-sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgba(255,255,255,0.15)"/>
+            <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+        </linearGradient></defs>
+        <polygon points="${pad},${h} ${points.join(' ')} ${w-pad},${h}" fill="url(#${gradId})" />
+        <polyline points="${points.join(' ')}" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
 }
 
 function renderAccountCards(accArr, txArr=[]) {
-    window._lastAccArr = accArr; // store for toggleBalance
+    window._lastAccArr = accArr;
     const grid = document.getElementById('accounts-cards');
     if (!grid) return;
-
-    // Hero stats
     const totalBal = accArr.reduce((s,a)=>s+parseFloat(a.balance||0),0);
     const heroAcc = document.getElementById('hero-total-accounts');
     const heroBal = document.getElementById('hero-total-balance');
     if (heroAcc) heroAcc.textContent = accArr.length;
     if (heroBal) heroBal.textContent = '₹' + totalBal.toLocaleString('en-IN', {maximumFractionDigits:2});
-
     if (!accArr.length) {
-        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:64px 0;color:var(--text3)">
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:64px 0;color:var(--text4)">
             <div style="font-size:40px;margin-bottom:12px">👤</div>
-            <div style="font-size:14px;font-weight:600;margin-bottom:6px">No accounts yet</div>
+            <div style="font-size:14px;font-weight:700;margin-bottom:6px">No accounts yet</div>
             <div style="font-size:12px">Add your first wallet below to get started</div>
         </div>`;
         return;
     }
-
     grid.innerHTML = accArr.map((a, i) => {
-        const safeId    = a.vpa.replace(/[@.]/g,'_');
-        const bal       = parseFloat(a.balance||0);
-        const balFmt    = bal.toLocaleString('en-IN', {maximumFractionDigits:2});
-        const isClosed  = a.status === 'CLOSED';
-        const gradient  = CARD_GRADIENTS[i % CARD_GRADIENTS.length];
-        const isLow     = !isClosed && bal > 0 && bal < 500;
-        const isZero    = !isClosed && bal === 0;
-        const lastTxs   = getLastTx(a.vpa, txArr);
+        const safeId = a.vpa.replace(/[@.]/g,'_');
+        const bal = parseFloat(a.balance||0);
+        const balFmt = bal.toLocaleString('en-IN', {maximumFractionDigits:2});
+        const isClosed = a.status === 'CLOSED';
+        const gradient = CARD_GRADIENTS[i % CARD_GRADIENTS.length];
+        const isLow = !isClosed && bal > 0 && bal < 500;
+        const isZero = !isClosed && bal === 0;
+        const lastTxs = getLastTx(a.vpa, txArr);
         const acctTypes = ['Savings Account','Current Account','Wallet','Prepaid'];
-        const acctType  = acctTypes[i % acctTypes.length];
-        const vpaShort  = a.vpa.split('@')[0].padStart(4,'*').slice(-4).toUpperCase();
-        const masked    = `●●●●  ●●●●  ●●●●  ${vpaShort}`;
-
+        const acctType = acctTypes[i % acctTypes.length];
+        const vpaShort = a.vpa.split('@')[0].padStart(4,'*').slice(-4).toUpperCase();
+        const masked = `●●●●  ●●●●  ●●●●  ${vpaShort}`;
+        const sparkline = generateSparkline(txArr, a.vpa);
         const txHtml = lastTxs.length ? lastTxs.map(t => {
-            const isCredit  = t.receiverVpa === a.vpa;
-            const otherName = holderFirstName(isCredit ? t.senderVpa.split('@')[0] : t.receiverVpa.split('@')[0]);
-            const desc      = isCredit ? `📲 ${otherName} paid you` : `💸 Paid ${otherName}`;
-            const ago       = timeAgo(t.settledAt);
+            const isCredit = t.receiverVpa === a.vpa;
+            const otherName = (isCredit ? t.senderVpa : t.receiverVpa).split('@')[0];
+            const desc = isCredit ? `📲 ${otherName} paid you` : `💸 Paid ${otherName}`;
+            const ago = timeAgo(t.settledAt);
             return `<div class="mini-tx-item">
-                <div class="mini-tx-dot" style="background:${isCredit?'var(--green)':'#f87171'}"></div>
+                <div class="mini-tx-dot" style="background:${isCredit?'var(--primary)':'var(--red2)'}"></div>
                 <div class="mini-tx-desc">${desc}<span class="mini-tx-time">${ago}</span></div>
                 <div class="mini-tx-amt ${isCredit?'credit':'debit'}">${isCredit?'+':'-'}₹${parseFloat(t.amount).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
             </div>`;
         }).join('') : `<div class="mini-tx-empty">No recent transactions</div>`;
-
         return `
-        <div class="acct-wrap${isClosed?' closed':''}">
-            <!-- Physical card -->
+        <div class="acct-wrap${isClosed?' closed':''}" style="animation-delay:${i*0.05}s">
             <div class="bank-card" style="background:${gradient};position:relative">
                 <div class="card-scanline"></div>
+                ${sparkline}
                 ${isClosed ? `<div class="closed-overlay"><div class="closed-stamp">CLOSED</div></div>` : ''}
                 <div class="card-top-row">
-                    <span class="card-brand">🏦 TrustMesh</span>
+                    <span class="card-brand">TrustMesh</span>
                     <div style="display:flex;align-items:center;gap:8px">
                         <span class="card-type-pill">${isClosed ? '🔴 Closed' : acctType}</span>
                         <button class="card-eye-btn" id="eye-${safeId}" onclick="toggleBalance('${a.vpa}')">👁️</button>
@@ -1617,7 +1173,7 @@ function renderAccountCards(accArr, txArr=[]) {
                 <div class="card-balance-section">
                     <div class="card-bal-label">${isClosed ? 'Account Closed' : 'Available Balance'}</div>
                     <div id="bal-${safeId}">
-                        <span class="card-bal-value" style="${isClosed?'color:rgba(255,255,255,0.4)':''}">₹${balFmt}</span>
+                        <span class="card-bal-value" style="${isClosed?'color:rgba(255,255,255,0.35)':''}">₹${balFmt}</span>
                     </div>
                 </div>
                 <div class="card-bottom-row">
@@ -1627,29 +1183,23 @@ function renderAccountCards(accArr, txArr=[]) {
                     </div>
                     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
                         <div class="card-chip"></div>
-                        ${isLow  ? `<span class="card-low-badge">⚠️ Low</span>` : ''}
-                        ${isZero && !isClosed ? `<span class="card-low-badge" style="border-color:rgba(239,68,68,0.5);color:#f87171;background:rgba(239,68,68,0.15)">Zero</span>` : ''}
+                        ${isLow ? `<span class="card-low-badge">⚠️ Low</span>` : ''}
+                        ${isZero && !isClosed ? `<span class="card-low-badge" style="border-color:rgba(239,68,68,0.4);color:var(--red2);background:rgba(239,68,68,0.12)">Zero</span>` : ''}
                     </div>
                 </div>
             </div>
-            <!-- Quick actions -->
             <div class="card-actions">
                 <button class="card-action-btn" ${isClosed?'disabled style="opacity:0.35;cursor:not-allowed"':''} onclick="sendFromAccount('${a.vpa}')">
                     <span class="card-action-icon">📤</span> Send
                 </button>
-                <button class="card-action-btn" ${isClosed?'disabled style="opacity:0.35;cursor:not-allowed"':''} onclick="copyUpi('${a.vpa}');toast('Share this UPI to receive money')">
+                <button class="card-action-btn" ${isClosed?'disabled style="opacity:0.35;cursor:not-allowed"':''} onclick="copyUpi('${a.vpa}')">
                     <span class="card-action-icon">💸</span> Request
                 </button>
                 ${isClosed
-                    ? `<button class="close-acct-btn" style="opacity:0.4;cursor:not-allowed" disabled>
-                           <span class="card-action-icon">🔴</span> Closed
-                       </button>`
-                    : `<button class="close-acct-btn" onclick="openCloseAccountModal('${a.vpa}','${(a.holderName||a.vpa).replace(/'/g,"\\'")}',${bal})">
-                           <span class="card-action-icon">🔐</span> Close
-                       </button>`
+                    ? `<button class="close-acct-btn" style="opacity:0.35;cursor:not-allowed" disabled><span class="card-action-icon">🔴</span> Closed</button>`
+                    : `<button class="close-acct-btn" onclick="openCloseAccountModal('${a.vpa}','${(a.holderName||a.vpa).replace(/'/g,"\\'")}',${bal})"><span class="card-action-icon">🔐</span> Close</button>`
                 }
             </div>
-            <!-- Mini transaction history -->
             <div class="mini-tx-list">
                 <div class="mini-tx-header">Recent Transactions</div>
                 ${txHtml}
@@ -1662,27 +1212,25 @@ function renderAccountCards(accArr, txArr=[]) {
     }).join('');
 }
 
-/* ════════════════════════════════════════════════════════════════
-   CLOSE ACCOUNT — REAL BANK FLOW
-   ════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════
+   CLOSE ACCOUNT MODAL
+   ════════════════════════════════════════════════════════ */
 function openCloseAccountModal(vpa, holderName, balance) {
     const root = document.getElementById('modal-root');
     const hasBalance = balance > 0;
     root.innerHTML = `
-    <div class="modal-backdrop" id="close-modal" onclick="e=>e.target===this&&closeModal()">
+    <div class="modal-backdrop" id="close-modal" onclick="if(event.target===this)closeModal()">
         <div class="modal-box" onclick="event.stopPropagation()">
             <div class="modal-icon">🔐</div>
             <div class="modal-title">Close Account</div>
             <div class="modal-body">
                 You are about to permanently close the account for
-                <strong>${holderName}</strong> (<code>${vpa}</code>).
+                <strong>${holderName}</strong> (<code style="color:var(--primary)">${vpa}</code>).
                 This action is <strong>irreversible</strong> and follows RBI audit guidelines.
             </div>
             ${hasBalance ? `
-            <div class="modal-rules" style="border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.08)">
-                <li style="color:#f87171;font-weight:600">
-                    ❌ Cannot close: Account has ₹${balance.toLocaleString('en-IN')} balance
-                </li>
+            <div class="modal-rules" style="border-color:rgba(239,68,68,0.2);background:rgba(239,68,68,0.05)">
+                <li style="color:var(--red2);font-weight:600">❌ Cannot close: Account has ₹${balance.toLocaleString('en-IN')} balance</li>
                 <li>Please transfer or withdraw all funds first via the Send option.</li>
             </div>` : `
             <div class="modal-rules">
@@ -1691,7 +1239,7 @@ function openCloseAccountModal(vpa, holderName, balance) {
                 <li>No new payments can be sent or received</li>
                 <li>This cannot be undone</li>
             </div>`}
-            <div class="modal-reason-label">Closure Reason <span style="color:#ef4444">*</span></div>
+            <div class="modal-reason-label">Closure Reason <span style="color:var(--red)">*</span></div>
             <textarea id="close-reason-input" class="modal-reason-input" rows="2"
                 placeholder="e.g. No longer using this account, switching to primary account..."
                 ${hasBalance ? 'disabled' : ''}></textarea>
@@ -1705,7 +1253,6 @@ function openCloseAccountModal(vpa, holderName, balance) {
             </div>
         </div>
     </div>`;
-    // Enable confirm button only when reason has ≥5 chars
     if (!hasBalance) {
         document.getElementById('close-reason-input').addEventListener('input', function() {
             document.getElementById('confirm-close-btn').disabled = this.value.trim().length < 5;
@@ -1713,10 +1260,7 @@ function openCloseAccountModal(vpa, holderName, balance) {
         document.getElementById('confirm-close-btn').disabled = true;
     }
 }
-
-function closeModal() {
-    document.getElementById('modal-root').innerHTML = '';
-}
+function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
 
 async function confirmCloseAccount(vpa) {
     const reason = document.getElementById('close-reason-input')?.value?.trim();
@@ -1725,8 +1269,7 @@ async function confirmCloseAccount(vpa) {
     btn.disabled = true; btn.textContent = '⏳ Closing…';
     try {
         const r = await fetch(`/api/accounts/${encodeURIComponent(vpa)}/close`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ reason })
         });
         const data = await r.json();
@@ -1745,32 +1288,51 @@ async function confirmCloseAccount(vpa) {
     }
 }
 
-/* ════════════════════════════════════════════════════════════════
-   ACTIONS
-   ════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════
+   ACTIONS — WITH PROPER ERROR HANDLING
+   ════════════════════════════════════════════════════════ */
 async function sendPacket() {
+    const senderVpa = document.getElementById('senderVpa').value;
+    const receiverVpa = document.getElementById('receiverVpa').value;
+
+    // Validate: same account
+    if (senderVpa === receiverVpa) {
+        toast('⚠️ Cannot send to yourself! Select a different receiver.');
+        return;
+    }
+    if (!senderVpa || !receiverVpa) {
+        toast('⚠️ Please select sender and receiver accounts.');
+        return;
+    }
+
     const btn1 = document.getElementById('btn-send');
     const btn2 = document.getElementById('viz-btn-send');
     [btn1,btn2].forEach(b=>b&&(b.disabled=true,b.textContent='⏳ Injecting…'));
     try {
-        const senderVpa = document.getElementById('senderVpa').value;
         const amount = parseFloat(document.getElementById('amount').value);
+        if (!amount || amount <= 0) { toast('⚠️ Enter a valid amount'); return; }
         const body = {
-            senderVpa, receiverVpa: document.getElementById('receiverVpa').value,
+            senderVpa, receiverVpa,
             amount, pin: document.getElementById('pin').value, ttl:5,
             startDevice: 'phone-'+senderVpa.split('@')[0]
         };
-        const r = await fetch('/api/demo/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
-        addLog(`📤 Packet <strong>${r.packetId.substring(0,8)}</strong> encrypted & injected into mesh (TTL ${r.ttl})`);
-        addLog(`🔐 Ciphertext: <span style="color:var(--green2);font-family:monospace">${r.ciphertextPreview.substring(0,60)}…</span>`);
-        document.getElementById('ciphertext-display').textContent = r.ciphertextPreview;
-        startJourney(r.packetId, senderVpa, amount);
+        const r = await fetch('/api/demo/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const data = await r.json();
+        if (!r.ok) {
+            const errMsg = data.message || data.violations?.join(', ') || data.error || 'Send failed';
+            toast('❌ ' + errMsg);
+            addLog(`❌ Send failed: ${errMsg}`, 'log-error');
+            return;
+        }
+        addLog(`📤 Packet <strong>${data.packetId.substring(0,8)}</strong> encrypted & injected into mesh (TTL ${data.ttl})`);
+        addLog(`🔐 Ciphertext: <span style="color:var(--primary);font-family:monospace">${data.ciphertextPreview.substring(0,60)}…</span>`);
+        document.getElementById('ciphertext-display').textContent = data.ciphertextPreview;
+        startJourney(data.packetId, senderVpa, amount);
         toast('📤 Packet injected!');
         await refresh();
-        // Animate: packet appears on sender node
         const startPos = nodePositions['phone-'+senderVpa.split('@')[0]];
         if (startPos) gossipWave.push({x:startPos.x, y:startPos.y, r:0, color:'#f59e0b'});
-    } catch(e) { addLog(`❌ Send failed: ${e.message}`,'log-error'); }
+    } catch(e) { addLog(`❌ Send failed: ${e.message}`,'log-error'); toast('❌ ' + e.message); }
     finally {
         [btn1,btn2].forEach(b=>b&&(b.disabled=false));
         btn1&&(btn1.textContent='📤 Encrypt & Inject into Mesh');
@@ -1783,13 +1345,18 @@ async function gossip() {
     const btn2 = document.getElementById('viz-btn-gossip');
     [btn1,btn2].forEach(b=>b&&(b.disabled=true,b.textContent='⏳ Gossiping…'));
     try {
-        const r = await fetch('/api/mesh/gossip',{method:'POST'}).then(r=>r.json());
-        addLog(`🔄 Gossip: <strong>${r.transfers}</strong> hop(s) — ${JSON.stringify(r.deviceCounts)}`);
-        toast(`🔄 ${r.transfers} transfer(s)`);
+        const r = await fetch('/api/mesh/gossip',{method:'POST'});
+        const data = await r.json();
+        if (!r.ok) {
+            toast('❌ ' + (data.message || data.error || 'Gossip failed'));
+            return;
+        }
+        addLog(`🔄 Gossip: <strong>${data.transfers}</strong> hop(s) — ${JSON.stringify(data.deviceCounts)}`);
+        toast(`🔄 ${data.transfers} transfer(s)`);
         triggerGossipAnimation();
-        markJourneyGossip(r.transfers, r.deviceCounts);
+        markJourneyGossip(data.transfers, data.deviceCounts);
         await refresh();
-    } catch(e) { addLog(`❌ Gossip failed: ${e.message}`,'log-error'); }
+    } catch(e) { addLog(`❌ Gossip failed: ${e.message}`,'log-error'); toast('❌ ' + e.message); }
     finally {
         [btn1,btn2].forEach(b=>b&&(b.disabled=false));
         btn1&&(btn1.textContent='🔄 Run Gossip Round');
@@ -1802,17 +1369,22 @@ async function flushBridges() {
     const btn2 = document.getElementById('viz-btn-flush');
     [btn1,btn2].forEach(b=>b&&(b.disabled=true,b.textContent='⏳ Uploading…'));
     try {
-        const r = await fetch('/api/mesh/flush',{method:'POST'}).then(r=>r.json());
-        addLog(`📡 <strong>${r.uploadsAttempted}</strong> bridge upload(s):`, 'log-settled');
-        r.results.forEach(res => {
+        const r = await fetch('/api/mesh/flush',{method:'POST'});
+        const data = await r.json();
+        if (!r.ok) {
+            toast('❌ ' + (data.message || data.error || 'Flush failed'));
+            return;
+        }
+        addLog(`📡 <strong>${data.uploadsAttempted}</strong> bridge upload(s):`, 'log-settled');
+        data.results.forEach(res => {
             addLog(`&nbsp;&nbsp;${res.bridgeNode} → <strong>${res.outcome}</strong>${res.reason?' ('+res.reason+')':''}`,
                 res.outcome==='SETTLED'?'log-settled':'');
             markJourneySettled(res.outcome, res.bridgeNode, 0);
             if (res.outcome === 'SETTLED') triggerSettleAnimation(res.bridgeNode);
         });
-        toast(`📡 ${r.uploadsAttempted} bridge(s) uploaded`);
+        toast(`📡 ${data.uploadsAttempted} bridge(s) uploaded`);
         await refresh();
-    } catch(e) { addLog(`❌ Flush failed: ${e.message}`,'log-error'); }
+    } catch(e) { addLog(`❌ Flush failed: ${e.message}`,'log-error'); toast('❌ ' + e.message); }
     finally {
         [btn1,btn2].forEach(b=>b&&(b.disabled=false));
         btn1&&(btn1.textContent='📡 Bridges Upload to Backend');
@@ -1827,18 +1399,17 @@ async function resetMesh() {
         toast('🗑 Reset!');
         journeySteps=[]; journeyPacketId=null;
         document.getElementById('journey-steps').innerHTML =
-            '<div id="journey-empty" style="text-align:center;padding:24px 0;color:var(--text3);font-size:12px;line-height:2">Inject a packet to see<br>its real-time journey<br>through the mesh 📡</div>';
+            '<div id="journey-empty" style="text-align:center;padding:24px 0;color:var(--text4);font-size:12px;line-height:2">Inject a packet to see<br>its real-time journey<br>through the mesh 📡</div>';
         document.getElementById('journey-status').textContent = 'Waiting…';
-        document.getElementById('journey-status').className = 'chip chip-indigo';
+        document.getElementById('journey-status').className = 'chip chip-green';
         await refresh();
     } catch(e) { addLog(`❌ Reset failed: ${e.message}`,'log-error'); }
 }
 
 async function addAccount() {
-    // Try Accounts tab form first, fall back to Ledger tab form
-    const vpa          = (document.getElementById('acct-newVpa')?.value   || document.getElementById('newVpa')?.value   || '').trim();
-    const holderName   = (document.getElementById('acct-newName')?.value  || document.getElementById('newName')?.value  || '').trim();
-    const balEl        = document.getElementById('acct-newBalance') || document.getElementById('newBalance');
+    const vpa = (document.getElementById('acct-newVpa')?.value || '').trim();
+    const holderName = (document.getElementById('acct-newName')?.value || '').trim();
+    const balEl = document.getElementById('acct-newBalance');
     const initialBalance = parseFloat(balEl?.value) || 1000;
     if (!vpa || !holderName) { toast('⚠️ VPA and Name required!'); return; }
     if (!vpa.includes('@')) { toast('⚠️ VPA must include @ e.g. raj@demo'); return; }
@@ -1849,9 +1420,8 @@ async function addAccount() {
         else {
             toast('✅ Account added: '+vpa);
             addLog(`➕ New account: <strong>${vpa}</strong> (${holderName})`);
-            // Clear both forms
-            ['acct-newVpa','newVpa'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
-            ['acct-newName','newName'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+            document.getElementById('acct-newVpa').value='';
+            document.getElementById('acct-newName').value='';
             await refresh();
         }
     } catch(e) { addLog(`❌ Add account failed: ${e.message}`,'log-error'); }
@@ -1861,29 +1431,31 @@ async function runStressTest() {
     const btn = document.getElementById('btn-stress');
     btn.disabled=true; btn.textContent='⏳ Running…';
     try {
-        const r = await fetch('/api/demo/stress-test',{method:'POST'}).then(r=>r.json());
+        const r = await fetch('/api/demo/stress-test',{method:'POST'});
+        const data = await r.json();
+        if (!r.ok) { toast('❌ ' + (data.message || 'Stress test failed')); return; }
         document.getElementById('stress-result').innerHTML = `
             <div class="stress-result">
-                <div style="font-weight:700;color:var(--green2);margin-bottom:10px">
-                    ✅ ${r.settled} SETTLED &nbsp;|&nbsp; 🚫 ${r.duplicateDropped} DUPLICATE_DROPPED
+                <div style="font-weight:700;color:var(--primary);margin-bottom:10px">
+                    ✅ ${data.settled} SETTLED &nbsp;|&nbsp; 🚫 ${data.duplicateDropped} DUPLICATE_DROPPED
                 </div>
-                ${r.results.map(res=>`<div class="stress-outcome">
+                ${data.results.map(res=>`<div class="stress-outcome">
                     <strong style="color:var(--text2)">${res.bridge}</strong>
                     <span class="badge ${res.outcome==='SETTLED'?'badge-settled':'badge-rejected'}">${res.outcome}</span>
-                    ${res.reason?`<span style="font-size:11px;color:var(--text3)">(${res.reason})</span>`:''}
+                    ${res.reason?`<span style="font-size:11px;color:var(--text4)">(${res.reason})</span>`:''}
                 </div>`).join('')}
-                <p style="font-size:11px;color:var(--text2);margin-top:10px">${r.explanation}</p>
+                <p style="font-size:11px;color:var(--text3);margin-top:10px">${data.explanation}</p>
             </div>`;
-        addLog(`🧪 Stress Test: <strong>${r.settled}</strong> settled, <strong>${r.duplicateDropped}</strong> dropped — idempotency ✅`,'log-settled');
+        addLog(`🧪 Stress Test: <strong>${data.settled}</strong> settled, <strong>${data.duplicateDropped}</strong> dropped — idempotency ✅`,'log-settled');
         toast('🧪 Stress test complete!');
         await refresh();
-    } catch(e) { addLog(`❌ Stress test failed: ${e.message}`,'log-error'); }
+    } catch(e) { addLog(`❌ Stress test failed: ${e.message}`,'log-error'); toast('❌ ' + e.message); }
     finally { btn.disabled=false; btn.textContent='🧪 Run Concurrent Stress Test'; }
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    WEBSOCKET — REAL-TIME EVENTS
-   ════════════════════════════════════════════════════════════════ */
+   ════════════════════════════════════════════════════════ */
 (function initWS() {
     try {
         const client = new StompJs.Client({
@@ -1891,15 +1463,17 @@ async function runStressTest() {
             reconnectDelay: 5000,
             onConnect: () => {
                 const badge = document.getElementById('ws-badge');
-                badge.textContent = '⬤ Live'; badge.className = 'ws-badge live';
+                badge.innerHTML = '<span class="ws-dot"></span> Live';
+                badge.className = 'ws-badge live';
                 addLog('⚡ <strong>WebSocket connected</strong> — receiving real-time events');
                 client.subscribe('/topic/mesh-events', msg => {
                     try { handleEvent(JSON.parse(msg.body)); refresh(); } catch(e){}
                 });
             },
             onDisconnect: () => {
-                document.getElementById('ws-badge').textContent = '⬤ Disconnected';
-                document.getElementById('ws-badge').className = 'ws-badge';
+                const badge = document.getElementById('ws-badge');
+                badge.innerHTML = '<span class="ws-dot"></span> Disconnected';
+                badge.className = 'ws-badge';
             }
         });
         client.activate();
@@ -1931,13 +1505,12 @@ function handleEvent(evt) {
             addLog('🗑 Mesh reset via WebSocket sync');
             dupeCount=0; document.getElementById('sm-dupes').textContent=0;
             break;
-
     }
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    KEYBOARD SHORTCUTS
-   ════════════════════════════════════════════════════════════════ */
+   ════════════════════════════════════════════════════════ */
 document.addEventListener('keydown', e => {
     if (['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
     switch(e.key.toLowerCase()) {
@@ -1948,13 +1521,38 @@ document.addEventListener('keydown', e => {
     }
 });
 
-/* ════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    INIT
-   ════════════════════════════════════════════════════════════════ */
+   ════════════════════════════════════════════════════════ */
 window.addEventListener('load', async () => {
-    // Set default active tab
+    // GSAP Page Load Animations
+    gsap.from(".sidebar-brand", { opacity: 0, y: -20, duration: 0.8, ease: "power3.out" });
+    gsap.from(".nav-tab", { opacity: 0, x: -20, duration: 0.5, stagger: 0.1, ease: "power2.out", delay: 0.3 });
+    
+    // Initialize VanillaTilt for cards
+    const initCards = () => {
+        VanillaTilt.init(document.querySelectorAll(".card"), {
+            max: 3, speed: 400, glare: true, "max-glare": 0.15, gyroscope: true
+        });
+    };
+    initCards();
+
+    // Hook into switchTab to re-trigger animations
+    const origSwitchTab = window.switchTab;
+    window.switchTab = function(name, el) {
+        origSwitchTab(name, el);
+        gsap.from(`#panel-${name} .card`, {
+            opacity: 0, y: 30, duration: 0.6, stagger: 0.1, ease: "back.out(1.5)", clearProps: "all"
+        });
+        setTimeout(initCards, 100);
+    };
+
     const firstTab = document.getElementById('tab-visualizer');
-    if (firstTab) switchTab('visualizer', firstTab);
+    if (firstTab) origSwitchTab('visualizer', firstTab);
+    
+    // Initial staggering for visualizer
+    gsap.from("#panel-visualizer .card", { opacity: 0, y: 30, duration: 0.6, stagger: 0.1, ease: "back.out(1.5)" });
+
     resizeCanvas();
     await refresh();
     drawFrame();
