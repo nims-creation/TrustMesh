@@ -6,6 +6,58 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.2.0] — 2026-06-24 · "Humanized"
+
+Complete frontend modernization — warm, trustworthy design system replacing the cold neon palette.
+
+### 🎨 Design System Overhaul
+
+#### Humanized Color Palette
+- **Soft Indigo** (`#6C63FF`) primary — trust, warmth, replacing cold neon cyan
+- **Mint Green** (`#34D399`) success — softer than electric green
+- **Warm Peach** (`#FF8A65`) accent — human warmth
+- **Sky Blue** (`#38BDF8`) accent — friendly information
+- **Warm Amber** (`#FBBF24`) — warnings and highlights
+- Softer dark background (`#0f1117`) — not pure black
+
+#### Inline SVG Graphics
+- Mesh network logo SVG in sidebar (replaces emoji icon)
+- Wallet/shield header SVG on Accounts page
+- Arrow transfer SVG on Demo page title
+- Step connector SVGs linking demo flow cards (dashed lines + gradient dots)
+- Animated pulse SVG live indicator on System Logs page
+- Mesh grid pattern SVG overlay on canvas card
+- Empty state illustrations for accounts and wallets
+
+#### Premium Metric Cards
+- Gradient icon containers (indigo, mint, peach, sky, amber variants)
+- Rounded icon with subtle glow shadow
+- Large Outfit font numbers with label below
+- Decorative sparkle radial gradient accent
+
+### ✨ Polished Components
+- **Buttons**: Pill-shaped (`border-radius: 100px`), gradient fills, micro-bounce on click, hover lift
+- **Cards**: `28px` radius, softer glow on hover (indigo tones)
+- **Sidebar**: Refined active indicator (3px indigo left border), softer hover states
+- **Toasts**: Slide-in-from-right animation with backdrop blur + scale
+- **Modals**: Scale-in entrance animation + backdrop blur
+- **Tables**: Warm zebra striping (subtle indigo tint on even rows)
+- **Forms**: Softer focus glow (indigo instead of cyan)
+
+### 🖌️ Canvas Visualizer Updates
+- Node colors updated to match humanized palette
+- Bridge nodes: Purple (`#8B5CF6`) glow instead of neon violet
+- Active nodes: Soft Indigo (`#6C63FF`) instead of cyan
+- Settlement burst: Mint green (`#34D399`)
+- Softer connection line opacity
+
+### 🌟 Background & Atmosphere
+- Dual animated gradient orbs (indigo + mint) floating in background
+- Softer radial gradient washes behind body
+- SVG mesh grid pattern on canvas card for depth
+
+---
+
 ## [2.1.0] — 2024-06-18 · "Visualizer"
 
 Complete dashboard overhaul based on interviewer feedback:

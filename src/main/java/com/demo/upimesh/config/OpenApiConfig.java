@@ -20,7 +20,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("TrustMesh - UPI Offline Mesh API")
                         .description("Backend APIs for simulating an offline, Bluetooth mesh-based UPI payment system. Handles hybrid encryption, idempotency, and replay-attack protection.")
-                        .version("v1.0.0")
+                        .version("v2.2.0")
                         .contact(new Contact()
                                 .name("TrustMesh Developer")
                                 .url("https://github.com/nims-creation/TrustMesh")

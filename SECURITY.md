@@ -4,8 +4,10 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.0.x   | ✅ Active           |
-| 1.0.x   | ⚠️ Security fixes only |
+| 2.2.x   | ✅ Active           |
+| 2.1.x   | ✅ Active           |
+| 2.0.x   | ⚠️ Security fixes only |
+| 1.0.x   | ❌ Not supported    |
 | < 1.0   | ❌ Not supported    |
 
 ---
