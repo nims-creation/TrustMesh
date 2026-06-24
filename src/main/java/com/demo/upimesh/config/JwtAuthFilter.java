@@ -1,6 +1,7 @@
 package com.demo.upimesh.config;
 
 import com.demo.upimesh.service.JwtService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * JWT authentication filter protecting /api/bridge/ingest.
@@ -29,6 +31,9 @@ import java.io.IOException;
  * Note: The demo dashboard bypasses this filter by using /api/mesh/flush
  * (which goes through MeshSimulatorService internally, not the raw bridge endpoint).
  * Real bridge nodes in production would call /api/bridge/ingest directly with a JWT.
+ *
+ * Security note: JSON error responses are built with Jackson ObjectMapper (NOT
+ * string concatenation) to prevent JSON injection if error messages contain quotes.
  */
 @Slf4j
 @Component
@@ -37,9 +42,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final String INGEST_PATH = "/api/bridge/ingest";
 
     private final JwtService jwtService;
+    private final ObjectMapper objectMapper;
 
-    public JwtAuthFilter(JwtService jwtService) {
+    public JwtAuthFilter(JwtService jwtService, ObjectMapper objectMapper) {
         this.jwtService = jwtService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -63,7 +70,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             log.warn("[jwt] Missing or malformed Authorization header on {}", INGEST_PATH);
             sendUnauthorized(response,
-                "Missing Authorization header. Register at POST /api/bridge/register to get a JWT.");
+                "Missing Authorization header.",
+                "POST /api/bridge/register with {\"deviceId\":\"your-device-id\"} to get a token.");
             return;
         }
 
@@ -73,7 +81,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (!jwtService.isTokenValid(token)) {
             log.warn("[jwt] Invalid or expired JWT on {}", INGEST_PATH);
             sendUnauthorized(response,
-                "Invalid or expired JWT. Re-register at POST /api/bridge/register.");
+                "Invalid or expired JWT.",
+                "Re-register at POST /api/bridge/register.");
             return;
         }
 
@@ -90,12 +99,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private void sendUnauthorized(HttpServletResponse response, String message) throws IOException {
+    /**
+     * Sends a structured 401 JSON response using ObjectMapper.
+     *
+     * SECURITY: Using ObjectMapper.writeValueAsString() instead of string concatenation
+     * prevents JSON injection if error messages ever contain special characters
+     * (e.g. quotes, backslashes) from attacker-controlled input.
+     */
+    private void sendUnauthorized(HttpServletResponse response,
+                                  String message,
+                                  String hint) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json");
-        response.getWriter().write(
-            "{\"error\":\"UNAUTHORIZED\",\"message\":\"" + message + "\"," +
-            "\"hint\":\"POST /api/bridge/register with {\\\"deviceId\\\":\\\"your-device-id\\\"} to get a token\"}"
+        response.setContentType("application/json;charset=UTF-8");
+        Map<String, String> body = Map.of(
+            "error",   "UNAUTHORIZED",
+            "message", message,
+            "hint",    hint
         );
+        response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }
