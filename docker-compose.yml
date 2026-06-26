@@ -36,6 +36,9 @@ services:
       # JWT secret — CHANGE THIS in production! Use Docker secrets or AWS Secrets Manager
       - JWT_SECRET=TrustMesh-BridgeNode-SecretKey-2024-ChangeInProd!
       - JWT_EXPIRATION_MS=86400000
+      # Redis connection
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       # PostgreSQL connection
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -44,6 +47,8 @@ services:
       - DB_PASSWORD=securepassword
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -69,6 +74,18 @@ services:
       test: ["CMD-SHELL", "pg_isready -U admin -d trustmesh"]
       interval: 5s
       timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: trustmesh-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
       retries: 5
 
 volumes:

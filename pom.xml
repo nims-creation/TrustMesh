@@ -34,6 +34,12 @@
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
 
+        <!-- Spring Data Redis for distributed idempotency lock -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- JPA + H2 in-memory DB (so the demo runs with zero setup) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
